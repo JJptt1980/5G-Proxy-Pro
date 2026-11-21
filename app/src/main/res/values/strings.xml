@@ -121,7 +121,7 @@ Also set this App\'s battery saver to \"No restrictions\".</string>
     <string name="status_title_waiting">Waiting for 5G</string>
     <string name="status_title_error">Error</string>
     <string name="label_connect_info">CONNECT FROM CLIENT</string>
-    <string name="hint_client_gateway">On the hotspot, set the server in 5G Proxy Client GW to "gateway" — no need to type the IP.</string>
+    <string name="hint_client_gateway">In Client GW, set server to "gateway" — no IP needed</string>
     <string name="label_advanced">Advanced settings</string>
     <string name="label_diagnostics">Diagnostics</string>
 </resources>

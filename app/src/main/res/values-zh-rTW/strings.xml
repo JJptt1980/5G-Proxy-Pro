@@ -117,7 +117,7 @@
     <string name="status_title_waiting">等待 5G 網路</string>
     <string name="status_title_error">錯誤</string>
     <string name="label_connect_info">Client 連線資訊</string>
-    <string name="hint_client_gateway">連這支手機熱點的裝置，在 5G Proxy Client GW 伺服器填 gateway 即可，不用輸入 IP。</string>
+    <string name="hint_client_gateway">Client GW 伺服器填 gateway 即可，不用輸入 IP</string>
     <string name="label_advanced">進階設定</string>
     <string name="label_diagnostics">診斷</string>
 </resources>

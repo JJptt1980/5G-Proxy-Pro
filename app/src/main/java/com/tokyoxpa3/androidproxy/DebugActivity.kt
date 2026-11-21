@@ -567,7 +567,7 @@ class DebugActivity : Activity() {
             })
             trafficUploadValue = TextView(context).apply {
                 text = getString(R.string.traffic_na)
-                textSize = 22f
+                textSize = 18f
                 setTextColor(0xFF28A745.toInt())
                 typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
                 setPadding(0, 4, 0, 2)
@@ -593,7 +593,7 @@ class DebugActivity : Activity() {
             })
             trafficDownloadValue = TextView(context).apply {
                 text = getString(R.string.traffic_na)
-                textSize = 22f
+                textSize = 18f
                 setTextColor(0xFF0D6EFD.toInt())
                 typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
                 setPadding(0, 4, 0, 2)
@@ -734,13 +734,16 @@ class DebugActivity : Activity() {
         }
         udpVerboseCheck.apply { setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent) }
         selfTestResultText.setTextColor(cText)
-        listOf(wifiIPText, usbTetherIPText, cellularIPText).forEach { it.setTextColor(cText) }
-        hotspotIPText.apply { setTextColor(cText); textSize = 18f; setTypeface(typeface, Typeface.BOLD) }
+        // 首頁要一頁放得下：IP 行字小一點、間距緊一點；熱點那行粗體但不放大，避免斷成兩行
+        listOf(wifiIPText, hotspotIPText, usbTetherIPText, cellularIPText).forEach {
+            it.setTextColor(cText); it.textSize = 15f; it.setPadding(0, dp(2), 0, dp(2))
+        }
+        hotspotIPText.setTypeface(hotspotIPText.typeface, Typeface.BOLD)
         ipCard.addView(TextView(this).apply {
             text = getString(R.string.hint_client_gateway)
             textSize = 13f
             setTextColor(cTextSecondary)
-            setPadding(0, 0, 0, dp(6))
+            setPadding(0, 0, 0, dp(4))
         }, 0)
         ipCard.addView(sectionLabel(getString(R.string.label_connect_info)), 0)
         mainButton.apply {
@@ -754,28 +757,42 @@ class DebugActivity : Activity() {
         listOf(selfTestButton, copyDiagnosticsButton, refreshButton).forEach { styleSecondaryButton(it) }
         (0 until diagCard.childCount).map { diagCard.getChildAt(it) }
             .filterIsInstance<Button>().forEach { styleSecondaryButton(it) }
+        // 並發連線提示收進進階設定，首頁不再佔三行
+        limitHintText.gravity = Gravity.START
+        limitHintText.setPadding(0, dp(8), 0, 0)
         val advancedBody = createCard().apply {
             addView(portLayout); addView(authLayout); addView(passLayout); addView(autoStartLayout)
+            addView(limitHintText)
         }
+        // 刷新狀態收進診斷卡最上面
+        (refreshButton.layoutParams as? LinearLayout.LayoutParams)?.apply { topMargin = 0; bottomMargin = dp(8) }
+        diagCard.addView(refreshButton, 0)
         val advancedHeader = collapsibleHeader(R.string.label_advanced, "ui_advanced_expanded", advancedBody)
         val diagHeader = collapsibleHeader(R.string.label_diagnostics, "ui_diag_expanded", diagCard)
-        listOf(ipCard, trafficCard, refreshButton).forEach {
-            (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(12)
+        // 兩個收合標題並排成一行
+        val headerRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(10); bottomMargin = dp(4) }
+            addView(advancedHeader, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = dp(5) })
+            addView(diagHeader, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(5) })
         }
-        (diagCard.layoutParams as? LinearLayout.LayoutParams)?.topMargin = 0
+        listOf(advancedHeader, diagHeader).forEach { it.setPadding(dp(16), dp(14), dp(16), dp(14)) }
+        listOf(ipCard, trafficCard).forEach {
+            (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(10)
+        }
+        (diagCard.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(4)
 
-        // 版面：標題 → 狀態卡 → 主按鈕 → 連線資訊 → 流量 → 進階設定 → 診斷 → 刷新
+        // 版面：狀態卡 → 主按鈕 → 連線資訊 → 流量 → [進階設定][診斷]（展開內容在下方）
         // 標題列已顯示 App 名稱，畫面內的大標題不再重複
         rootLayout.addView(statusCard)
         rootLayout.addView(mainButton)
-        rootLayout.addView(limitHintText)
         rootLayout.addView(ipCard)
         rootLayout.addView(trafficCard)
-        rootLayout.addView(advancedHeader)
+        rootLayout.addView(headerRow)
         rootLayout.addView(advancedBody)
-        rootLayout.addView(diagHeader)
         rootLayout.addView(diagCard)
-        rootLayout.addView(refreshButton)
 
         // 包 ScrollView：橫向或小螢幕時內容高度超過可視區域，
         // 沒有捲動能力時 mainButton 會落在折疊線之下完全無法點擊
