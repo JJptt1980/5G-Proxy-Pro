@@ -11,10 +11,10 @@
 - 不對上游開 PR，只維護自己的 fork（比照 Client）。
 
 ## 遠端
-- `origin` = https://github.com/tokyoxpa3/5G-Proxy-Pro （原專案；fork 之後會改名為 upstream）
+- `origin` = https://github.com/JJptt1980/5G-Proxy-Pro （fork，預設分支 `gw`）
+- `upstream` = https://github.com/tokyoxpa3/5G-Proxy-Pro （原專案）
 
 ## 下一步
-- fork 到 JJptt1980 並推送 `gw`，fork 預設分支設為 `gw`（等使用者確認）。
 - 實機安裝（要先解除安裝原版 Pro）。
 
 ## 已知問題
