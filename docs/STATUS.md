@@ -4,6 +4,7 @@
 - 分支 `gw`（從上游 cff797e 開出）：主畫面改版（狀態卡、藍色啟動／紅色停止、Client 連線資訊卡、進階設定與診斷收合）、App 圖示加「GW」標籤。
 - `./gradlew assembleDebug testDebugUnitTest`（JDK 17）通過；模擬器上看過未啟動、運行中、兩個收合區塊展開的畫面。
 - 首頁一頁放得下（X200 Pro 實機確認）：並發提示收進進階設定、刷新狀態收進診斷、進階設定和診斷並排一行、IP 與流量字縮小。
+- 修正 16 KB 分頁警告：CMake 加 `-Wl,-z,max-page-size=16384`（LOAD 對齊 0x4000），build.gradle 改 `useLegacyPackaging true`（.so 壓縮打包）。X200 Pro 實機確認不再跳警告。
 - 2026-11-21 已裝到 X200 Pro（先解除安裝原版 1.6.3，設定已清空）。
 
 ## 已定案的決定
@@ -20,4 +21,4 @@
 - 實機測試：X200 Pro 開熱點跑 Pro GW，平板用 Client GW 填 gateway 連線。
 
 ## 已知問題
-- X200 Pro（Android 15+）開啟 debug 版會跳「不支援 16 KB 分頁」警告：原專案的 libandroidproxy.so 沒有 16 KB 對齊，原版就有，App 照常可用。
+- 無。

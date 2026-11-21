@@ -42,3 +42,7 @@ target_compile_options(androidproxy PRIVATE
 target_link_options(androidproxy PRIVATE
     $<$<CONFIG:Release>:-Wl,--gc-sections>
 )
+
+# 16 KB 分頁：Android 15+ 的 16 KB 分頁裝置要求 .so 的 LOAD 區段以 16 KB 對齊，
+# 否則 debug 版開啟時會跳「不支援 16 KB」警告。NDK r26 預設只對齊 4 KB。
+target_link_options(androidproxy PRIVATE "-Wl,-z,max-page-size=16384")

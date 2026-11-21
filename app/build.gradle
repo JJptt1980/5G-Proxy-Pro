@@ -76,6 +76,14 @@ android {
         }
     }
     
+    // 16 KB 分頁：AGP 8.1 打包未壓縮的 .so 時只做 4 KB zip 對齊。
+    // 改用壓縮打包（安裝時解壓到磁碟），APK 內的 zip 對齊就不影響 16 KB 檢查。
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging true
+        }
+    }
+
     externalNativeBuild {
         cmake {
             path file('CMakeLists.txt')
