@@ -8,11 +8,11 @@
     <string name="auth_pass_label">Password: </string>
     <string name="auth_pass_hint">Empty = auth disabled</string>
     <string name="auth_applied_live">Auth applied live (new connections)</string>
-    <string name="btn_start_proxy">🚀 Start 5G Proxy</string>
+    <string name="btn_start_proxy">Start 5G Proxy</string>
     <string name="wifi_ip_fetching">📶 Wi-Fi IP: Fetching...</string>
     <string name="hotspot_ip_fetching">🛰️ Hotspot IP: Fetching...</string>
     <string name="cellular_ip_fetching">📲 Cellular IP: Fetching...</string>
-    <string name="btn_stop_proxy">🛑 Stop Proxy Service</string>
+    <string name="btn_stop_proxy">Stop Proxy</string>
     <string name="status_proxy_running">✅ 5G Proxy Running</string>
     <string name="status_starting">🚀 Starting Service...</string>
     <string name="status_stopped">Service Stopped</string>
@@ -115,4 +115,13 @@ Also set this App\'s battery saver to \"No restrictions\".</string>
     <string name="traffic_upload_label">↑ UPLOAD</string>
     <string name="traffic_download_label">↓ DOWNLOAD</string>
     <string name="traffic_na">--</string>
+    <string name="status_title_stopped">Not running</string>
+    <string name="status_title_starting">Starting…</string>
+    <string name="status_title_running">Running</string>
+    <string name="status_title_waiting">Waiting for 5G</string>
+    <string name="status_title_error">Error</string>
+    <string name="label_connect_info">CONNECT FROM CLIENT</string>
+    <string name="hint_client_gateway">On the hotspot, set the server in 5G Proxy Client GW to "gateway" — no need to type the IP.</string>
+    <string name="label_advanced">Advanced settings</string>
+    <string name="label_diagnostics">Diagnostics</string>
 </resources>

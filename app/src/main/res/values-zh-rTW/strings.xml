@@ -8,11 +8,11 @@
     <string name="auth_pass_label">密碼: </string>
     <string name="auth_pass_hint">留空 = 不啟用認證</string>
     <string name="auth_applied_live">認證已即時套用（新連線生效）</string>
-    <string name="btn_start_proxy">🚀 一鍵開啟 5G 代理</string>
+    <string name="btn_start_proxy">啟動 5G 代理</string>
     <string name="wifi_ip_fetching">📶 Wi-Fi IP: 獲取中...</string>
     <string name="hotspot_ip_fetching">🛰️ 熱點分享 IP: 獲取中...</string>
     <string name="cellular_ip_fetching">📲 行動網路 IP: 獲取中...</string>
-    <string name="btn_stop_proxy">🛑 停止代理服務</string>
+    <string name="btn_stop_proxy">停止代理</string>
     <string name="status_proxy_running">✅ 5G Proxy Running</string>
     <string name="status_starting">🚀 正在啟動服務...</string>
     <string name="status_stopped">服務已停止</string>
@@ -111,4 +111,13 @@
     <string name="traffic_upload_label">↑ 上傳</string>
     <string name="traffic_download_label">↓ 下載</string>
     <string name="traffic_na">--</string>
+    <string name="status_title_stopped">未啟動</string>
+    <string name="status_title_starting">啟動中…</string>
+    <string name="status_title_running">運行中</string>
+    <string name="status_title_waiting">等待 5G 網路</string>
+    <string name="status_title_error">錯誤</string>
+    <string name="label_connect_info">Client 連線資訊</string>
+    <string name="hint_client_gateway">連這支手機熱點的裝置，在 5G Proxy Client GW 伺服器填 gateway 即可，不用輸入 IP。</string>
+    <string name="label_advanced">進階設定</string>
+    <string name="label_diagnostics">診斷</string>
 </resources>

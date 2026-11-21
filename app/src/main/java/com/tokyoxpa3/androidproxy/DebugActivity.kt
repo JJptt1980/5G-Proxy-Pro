@@ -24,6 +24,8 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.view.Gravity
+import android.content.res.ColorStateList
+import android.graphics.Typeface
 import com.tokyoxpa3.androidproxy.network.CellularNetworkManager
 import com.tokyoxpa3.androidproxy.network.HotspotManager
 import com.tokyoxpa3.androidproxy.network.PublicIPChecker
@@ -31,6 +33,8 @@ import com.tokyoxpa3.androidproxy.network.PublicIPChecker
 class DebugActivity : Activity() {
     
     private lateinit var statusText: TextView
+    private lateinit var statusTitle: TextView
+    private lateinit var statusDot: View
     private lateinit var wifiIPText: TextView
     private lateinit var hotspotIPText: TextView
     private lateinit var usbTetherIPText: TextView
@@ -167,44 +171,49 @@ class DebugActivity : Activity() {
             Socks5ProxyService.ProxyStatus.STARTING -> {
                 isRunning = true
                 mainButton.text = stopText
-                mainButton.background = createButtonDrawable(0xFFDC3545.toInt())
+                mainButton.background = createButtonDrawable(cRed)
                 statusText.text = getString(R.string.status_starting)
-                statusText.setTextColor(0xFF6C757D.toInt())
+                statusText.setTextColor(cTextSecondary)
+                setStatusVisual(cYellow, R.string.status_title_starting)
             }
             Socks5ProxyService.ProxyStatus.RUNNING -> {
                 isRunning = true
                 mainButton.text = stopText
-                mainButton.background = createButtonDrawable(0xFFDC3545.toInt())
+                mainButton.background = createButtonDrawable(cRed)
                 statusText.text = getString(R.string.status_proxy_running)
-                statusText.setTextColor(0xFF6C757D.toInt())
+                statusText.setTextColor(cTextSecondary)
+                setStatusVisual(cGreen, R.string.status_title_running)
                 startTrafficPolling()
             }
             Socks5ProxyService.ProxyStatus.RESTARTING -> {
                 isRunning = true
                 mainButton.text = stopText
-                mainButton.background = createButtonDrawable(0xFFDC3545.toInt())
+                mainButton.background = createButtonDrawable(cRed)
                 statusText.text = getString(R.string.status_restarting)
-                statusText.setTextColor(0xFF6C757D.toInt())
+                statusText.setTextColor(cTextSecondary)
+                setStatusVisual(cYellow, R.string.status_title_starting)
             }
             Socks5ProxyService.ProxyStatus.PAUSED -> {
                 isRunning = true
                 mainButton.text = stopText
-                mainButton.background = createButtonDrawable(0xFFDC3545.toInt())
+                mainButton.background = createButtonDrawable(cRed)
                 statusText.text = getString(R.string.status_waiting_network)
-                statusText.setTextColor(0xFF6C757D.toInt())
+                statusText.setTextColor(cTextSecondary)
+                setStatusVisual(cYellow, R.string.status_title_waiting)
             }
             Socks5ProxyService.ProxyStatus.STOPPED -> {
                 isRunning = false
                 mainButton.text = startText
-                mainButton.background = createButtonDrawable(0xFF6200EE.toInt())
+                mainButton.background = createButtonDrawable(cAccent)
                 statusText.text = getString(R.string.status_stopped)
-                statusText.setTextColor(0xFF6C757D.toInt())
+                statusText.setTextColor(cTextSecondary)
+                setStatusVisual(cGray, R.string.status_title_stopped)
                 stopTrafficPolling()
             }
             Socks5ProxyService.ProxyStatus.FAILED -> {
                 isRunning = false
                 mainButton.text = startText
-                mainButton.background = createButtonDrawable(0xFF6200EE.toInt())
+                mainButton.background = createButtonDrawable(cAccent)
                 stopTrafficPolling()
                 val error = Socks5ProxyService.lastErrorMessage
                 statusText.text = if (error != null) {
@@ -212,9 +221,18 @@ class DebugActivity : Activity() {
                 } else {
                     getString(R.string.status_failed_generic)
                 }
-                statusText.setTextColor(android.graphics.Color.RED)
+                statusText.setTextColor(cRed)
+                setStatusVisual(cRed, R.string.status_title_error)
             }
         }
+    }
+
+    /** 狀態卡：圓點顏色 + 大字狀態；詳細訊息仍寫在 statusText。 */
+    private fun setStatusVisual(color: Int, titleRes: Int) {
+        if (!this::statusTitle.isInitialized) return
+        (statusDot.background as GradientDrawable).setColor(color)
+        statusTitle.text = getString(titleRes)
+        statusTitle.setTextColor(if (color == cRed) cRed else cText)
     }
 
     private fun checkLastExitReason() {
@@ -261,13 +279,31 @@ class DebugActivity : Activity() {
         }
         
         // Status Card
+        statusDot = View(this).apply {
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(cGray) }
+            layoutParams = LinearLayout.LayoutParams(dp(14), dp(14)).apply { rightMargin = dp(14) }
+        }
+        statusTitle = TextView(this).apply {
+            text = getString(R.string.status_title_stopped)
+            textSize = 20f
+            setTypeface(typeface, Typeface.BOLD)
+            setTextColor(cText)
+        }
+        statusText = TextView(this).apply {
+            text = getString(R.string.service_not_started)
+            textSize = 14f
+            setTextColor(cTextSecondary)
+            setPadding(0, dp(2), 0, 0)
+        }
         val statusCard = createCard().apply {
-            statusText = TextView(context).apply {
-                text = getString(R.string.service_not_started)
-                textSize = 16f
-                setTextColor(0xFF6C757D.toInt())
-            }
-            addView(statusText)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(statusDot)
+            addView(LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                addView(statusTitle)
+                addView(statusText)
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
         }
         
         // Port Config
@@ -428,7 +464,7 @@ class DebugActivity : Activity() {
             text = getString(R.string.btn_start_proxy)
             textSize = 18f
             setTextColor(Color.WHITE)
-            background = createButtonDrawable(0xFF6200EE.toInt())
+            background = createButtonDrawable(cAccent)
             setPadding(0, 32, 0, 32)
             setOnClickListener { toggleProxy() }
         }
@@ -500,15 +536,6 @@ class DebugActivity : Activity() {
             setOnClickListener { refreshStatus() }
         }
         
-        rootLayout.addView(titleText)
-        rootLayout.addView(statusCard)
-        rootLayout.addView(portLayout)
-        rootLayout.addView(authLayout)
-        rootLayout.addView(passLayout)
-        rootLayout.addView(autoStartLayout)
-        rootLayout.addView(mainButton)
-        rootLayout.addView(limitHintText)
-        rootLayout.addView(ipCard)
 
         // Traffic Card（範本 B：上傳/下載雙欄彩色大數字）
         val trafficCard = createCard().apply {
@@ -583,7 +610,6 @@ class DebugActivity : Activity() {
             cols.addView(downCol)
             addView(cols)
         }
-        rootLayout.addView(trafficCard)
 
         // Diagnostics Card（自我檢測 + 複製診斷報告）
         val diagCard = createCard().apply {
@@ -687,6 +713,67 @@ class DebugActivity : Activity() {
             }
             addView(selfTestResultText)
         }
+        // ── GW 版：統一配色 ──
+        rootLayout.setBackgroundColor(cPageBg)
+        rootLayout.setPadding(dp(16), dp(12), dp(16), dp(32))
+        titleText.apply { textSize = 22f; setTextColor(cText); setPadding(0, 0, 0, dp(12)) }
+        listOf(portInput, authUserInput, authPassInput).forEach { styleField(it) }
+        authPassInput.typeface = Typeface.DEFAULT
+        listOf(portLayout, authLayout, passLayout).forEach { row ->
+            row.setPadding(0, dp(6), 0, dp(6))
+            (row.getChildAt(0) as TextView).apply {
+                textSize = 15f
+                setTextColor(cText)
+                setPadding(0, 0, dp(12), 0)
+                // 固定寬度，讓三個輸入框左緣對齊
+                layoutParams = LinearLayout.LayoutParams(dp(104), ViewGroup.LayoutParams.WRAP_CONTENT)
+            }
+        }
+        (autoStartLayout.getChildAt(0) as CheckBox).apply {
+            setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent)
+        }
+        udpVerboseCheck.apply { setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent) }
+        selfTestResultText.setTextColor(cText)
+        listOf(wifiIPText, usbTetherIPText, cellularIPText).forEach { it.setTextColor(cText) }
+        hotspotIPText.apply { setTextColor(cText); textSize = 18f; setTypeface(typeface, Typeface.BOLD) }
+        ipCard.addView(TextView(this).apply {
+            text = getString(R.string.hint_client_gateway)
+            textSize = 13f
+            setTextColor(cTextSecondary)
+            setPadding(0, 0, 0, dp(6))
+        }, 0)
+        ipCard.addView(sectionLabel(getString(R.string.label_connect_info)), 0)
+        mainButton.apply {
+            isAllCaps = false
+            stateListAnimator = null
+            textSize = 17f
+            setTypeface(typeface, Typeface.BOLD)
+            setPadding(0, 0, 0, 0)
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)).apply { topMargin = dp(12) }
+        }
+        listOf(selfTestButton, copyDiagnosticsButton, refreshButton).forEach { styleSecondaryButton(it) }
+        (0 until diagCard.childCount).map { diagCard.getChildAt(it) }
+            .filterIsInstance<Button>().forEach { styleSecondaryButton(it) }
+        val advancedBody = createCard().apply {
+            addView(portLayout); addView(authLayout); addView(passLayout); addView(autoStartLayout)
+        }
+        val advancedHeader = collapsibleHeader(R.string.label_advanced, "ui_advanced_expanded", advancedBody)
+        val diagHeader = collapsibleHeader(R.string.label_diagnostics, "ui_diag_expanded", diagCard)
+        listOf(ipCard, trafficCard, refreshButton).forEach {
+            (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(12)
+        }
+        (diagCard.layoutParams as? LinearLayout.LayoutParams)?.topMargin = 0
+
+        // 版面：標題 → 狀態卡 → 主按鈕 → 連線資訊 → 流量 → 進階設定 → 診斷 → 刷新
+        // 標題列已顯示 App 名稱，畫面內的大標題不再重複
+        rootLayout.addView(statusCard)
+        rootLayout.addView(mainButton)
+        rootLayout.addView(limitHintText)
+        rootLayout.addView(ipCard)
+        rootLayout.addView(trafficCard)
+        rootLayout.addView(advancedHeader)
+        rootLayout.addView(advancedBody)
+        rootLayout.addView(diagHeader)
         rootLayout.addView(diagCard)
         rootLayout.addView(refreshButton)
 
@@ -694,25 +781,98 @@ class DebugActivity : Activity() {
         // 沒有捲動能力時 mainButton 會落在折疊線之下完全無法點擊
         val scrollView = ScrollView(this).apply {
             isFillViewport = true
-            setBackgroundColor(0xFFF8F9FA.toInt())
+            setBackgroundColor(cPageBg)
         }
         scrollView.addView(rootLayout)
         setContentView(scrollView)
     }
     
+    // ── GW 版樣式工具：配色跟 5G Proxy Client GW 一致，依主題深淺切換 ──
+    private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
+    private val isDark: Boolean by lazy {
+        val a = obtainStyledAttributes(intArrayOf(android.R.attr.textColorPrimary))
+        val c = a.getColor(0, Color.WHITE)
+        a.recycle()
+        (Color.red(c) + Color.green(c) + Color.blue(c)) / 3 > 128
+    }
+    private val cPageBg get() = if (isDark) 0xFF111216.toInt() else 0xFFF2F2F7.toInt()
+    private val cCardBg get() = if (isDark) 0xFF1E1F24.toInt() else 0xFFFFFFFF.toInt()
+    private val cFieldBg get() = if (isDark) 0xFF26272D.toInt() else 0xFFF7F7FA.toInt()
+    private val cStroke get() = if (isDark) 0xFF3A3B43.toInt() else 0xFFD8D8DE.toInt()
+    private val cText get() = if (isDark) 0xFFF5F5F7.toInt() else 0xFF1C1C1E.toInt()
+    private val cTextSecondary get() = if (isDark) 0xFF9A9AA2.toInt() else 0xFF6C6C72.toInt()
+    private val cAccent = 0xFF0A84FF.toInt()
+    private val cGreen = 0xFF30D158.toInt()
+    private val cYellow = 0xFFFFC300.toInt()
+    private val cRed = 0xFFFF453A.toInt()
+    private val cGray = 0xFF8E8E93.toInt()
+
+    private fun rounded(color: Int, radiusDp: Int, strokeColor: Int? = null) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(radiusDp).toFloat()
+        if (strokeColor != null) setStroke(dp(1), strokeColor)
+    }
+
     private fun createCard() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(32, 32, 32, 32)
-        background = GradientDrawable().apply {
-            setColor(Color.WHITE)
-            cornerRadius = 16f
-            setStroke(2, 0xFFDEE2E6.toInt())
-        }
+        setPadding(dp(16), dp(14), dp(16), dp(14))
+        background = rounded(cCardBg, 16)
+        layoutParams = LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+        )
     }
-    
-    private fun createButtonDrawable(color: Int) = GradientDrawable().apply {
-        setColor(color)
-        cornerRadius = 12f
+
+    private fun createButtonDrawable(color: Int) = rounded(color, 14)
+
+    private fun sectionLabel(text: String) = TextView(this).apply {
+        this.text = text
+        textSize = 13f
+        setTextColor(cTextSecondary)
+        setPadding(0, 0, 0, dp(6))
+    }
+
+    private fun styleField(et: EditText) {
+        et.background = rounded(cFieldBg, 10, cStroke)
+        et.setPadding(dp(12), dp(10), dp(12), dp(10))
+        et.setTextColor(cText)
+        et.setHintTextColor(cTextSecondary)
+        et.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+    }
+
+    private fun styleSecondaryButton(b: Button) {
+        b.background = rounded(cFieldBg, 10)
+        b.isAllCaps = false
+        b.stateListAnimator = null
+        b.textSize = 15f
+        b.setTextColor(ColorStateList(
+            arrayOf(intArrayOf(-android.R.attr.state_enabled), intArrayOf()),
+            intArrayOf(cGray, cAccent)
+        ))
+    }
+
+    /** 可收合區塊的標題列；展開狀態記在 proxy_config 偏好設定。 */
+    private fun collapsibleHeader(titleRes: Int, prefKey: String, body: View): TextView {
+        val prefs = getSharedPreferences("proxy_config", Context.MODE_PRIVATE)
+        val header = TextView(this).apply {
+            textSize = 16f
+            setTextColor(cAccent)
+            background = rounded(cCardBg, 16)
+            setPadding(dp(18), dp(16), dp(18), dp(16))
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = dp(16); bottomMargin = dp(4) }
+        }
+        fun setExpanded(expanded: Boolean) {
+            body.visibility = if (expanded) View.VISIBLE else View.GONE
+            header.text = getString(titleRes) + if (expanded) "  ▾" else "  ▸"
+        }
+        setExpanded(prefs.getBoolean(prefKey, false))
+        header.setOnClickListener {
+            val next = body.visibility != View.VISIBLE
+            prefs.edit().putBoolean(prefKey, next).apply()
+            setExpanded(next)
+        }
+        return header
     }
     
     private fun toggleProxy() {
@@ -789,7 +949,7 @@ class DebugActivity : Activity() {
 
         isRunning = true
         mainButton.text = getString(R.string.btn_stop_proxy)
-        mainButton.background = createButtonDrawable(0xFFDC3545.toInt())
+        mainButton.background = createButtonDrawable(cRed)
         statusText.text = getString(R.string.status_starting)
         
         val intent = Intent(this, Socks5ProxyService::class.java).apply {
@@ -807,7 +967,7 @@ class DebugActivity : Activity() {
     private fun stopProxyFlow() {
         isRunning = false
         mainButton.text = getString(R.string.btn_start_proxy)
-        mainButton.background = createButtonDrawable(0xFF6200EE.toInt())
+        mainButton.background = createButtonDrawable(cAccent)
         
         val intent = Intent(this, Socks5ProxyService::class.java).apply {
             action = Socks5ProxyService.ACTION_STOP_PROXY
