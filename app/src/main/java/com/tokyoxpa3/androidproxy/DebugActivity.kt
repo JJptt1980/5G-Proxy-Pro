@@ -762,7 +762,9 @@ class DebugActivity : Activity() {
                 isChecked = authPrefs.getBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, false)
                 setOnCheckedChangeListener { _, checked ->
                     authPrefs.edit().putBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, checked).apply()
-                    Socks5ProxyService.instance?.applyHotspotLink(checked)
+                    // 勾起來就馬上開始等熱點（不用另外按啟動）；服務已在跑就即時套用
+                    if (checked && !Socks5ProxyService.isServiceRunning) startProxyFlow()
+                    else Socks5ProxyService.instance?.applyHotspotLink(checked)
                 }
             })
             addView(TextView(this@DebugActivity).apply {

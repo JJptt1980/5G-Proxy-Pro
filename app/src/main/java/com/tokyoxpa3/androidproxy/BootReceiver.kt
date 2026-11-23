@@ -21,7 +21,9 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action !in ACTIONS) return
 
         val prefs = context.getSharedPreferences("proxy_config", Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(Socks5ProxyService.PREF_AUTO_START, false)) return
+        // GW 熱點連動開著時，也視同開機自動啟動（回到等熱點）
+        if (!prefs.getBoolean(Socks5ProxyService.PREF_AUTO_START, false) &&
+            !prefs.getBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, false)) return
         if (!prefs.getBoolean(Socks5ProxyService.PREF_WAS_RUNNING, false)) return
         if (Socks5ProxyService.isServiceRunning) return
 

@@ -125,7 +125,7 @@ Also set this App\'s battery saver to \"No restrictions\".</string>
     <string name="label_advanced">Advanced settings</string>
     <string name="label_diagnostics">Diagnostics</string>
     <string name="label_hotspot_link">Follow the hotspot</string>
-    <string name="hint_hotspot_link">Starts the proxy when the hotspot turns on and stops it when it turns off. The notification stays while waiting; press Stop to quit completely.</string>
+    <string name="hint_hotspot_link">When checked, waits for the hotspot in the background: starts the proxy when it turns on, stops when it turns off, and comes back after a reboot or update. Press Stop or uncheck to quit completely.</string>
     <string name="status_title_waiting_hotspot">Waiting for hotspot</string>
     <string name="status_waiting_hotspot">Starts as soon as the hotspot is on</string>
     <string name="notification_waiting_hotspot_title">Waiting for the hotspot</string>

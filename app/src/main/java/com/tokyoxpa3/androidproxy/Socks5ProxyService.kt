@@ -595,9 +595,11 @@ class Socks5ProxyService : Service() {
             serviceScope.launch { onHotspotMaybeChanged() }
         } else {
             stopHotspotWatch()
+            // 取消連動時若還在等熱點：代表使用者不要它在背景等了，整個停掉
             if (currentStatus == ProxyStatus.WAITING_HOTSPOT) {
-                stopRequested = false
-                startProxy(linkedPort)
+                getSharedPreferences("proxy_config", MODE_PRIVATE).edit()
+                    .putBoolean(PREF_WAS_RUNNING, false).apply()
+                stopProxy()
             }
         }
     }
