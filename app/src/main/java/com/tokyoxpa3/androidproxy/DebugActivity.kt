@@ -201,6 +201,15 @@ class DebugActivity : Activity() {
                 statusText.setTextColor(cTextSecondary)
                 setStatusVisual(cYellow, R.string.status_title_waiting)
             }
+            Socks5ProxyService.ProxyStatus.WAITING_HOTSPOT -> {
+                isRunning = true
+                mainButton.text = stopText
+                mainButton.background = createButtonDrawable(cRed)
+                statusText.text = getString(R.string.status_waiting_hotspot)
+                statusText.setTextColor(cTextSecondary)
+                setStatusVisual(cYellow, R.string.status_title_waiting_hotspot)
+                stopTrafficPolling()
+            }
             Socks5ProxyService.ProxyStatus.STOPPED -> {
                 isRunning = false
                 mainButton.text = startText
@@ -732,6 +741,28 @@ class DebugActivity : Activity() {
         (autoStartLayout.getChildAt(0) as CheckBox).apply {
             setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent)
         }
+        // [GW 熱點連動] 熱點開→自動啟動代理，關→自動停（通知留著等下一次）
+        val hotspotLinkLayout = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(0, 0, 0, dp(8))
+            addView(CheckBox(this@DebugActivity).apply {
+                text = getString(R.string.label_hotspot_link)
+                textSize = 16f
+                setTextColor(cText)
+                buttonTintList = ColorStateList.valueOf(cAccent)
+                isChecked = authPrefs.getBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, false)
+                setOnCheckedChangeListener { _, checked ->
+                    authPrefs.edit().putBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, checked).apply()
+                    Socks5ProxyService.instance?.applyHotspotLink(checked)
+                }
+            })
+            addView(TextView(this@DebugActivity).apply {
+                text = getString(R.string.hint_hotspot_link)
+                textSize = 12f
+                setTextColor(cTextSecondary)
+                setPadding(dp(4), 0, dp(4), 0)
+            })
+        }
         udpVerboseCheck.apply { setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent) }
         selfTestResultText.setTextColor(cText)
         // 首頁要一頁放得下：IP 行字小一點、間距緊一點；熱點那行粗體但不放大，避免斷成兩行
@@ -762,6 +793,7 @@ class DebugActivity : Activity() {
         limitHintText.setPadding(0, dp(8), 0, 0)
         val advancedBody = createCard().apply {
             addView(portLayout); addView(authLayout); addView(passLayout); addView(autoStartLayout)
+            addView(hotspotLinkLayout)
             addView(limitHintText)
         }
         // 刷新狀態收進診斷卡最上面
@@ -1184,6 +1216,7 @@ class DebugActivity : Activity() {
             Socks5ProxyService.ProxyStatus.PAUSED -> "PAUSED"
             Socks5ProxyService.ProxyStatus.STOPPED -> "STOPPED"
             Socks5ProxyService.ProxyStatus.FAILED -> "FAILED"
+            Socks5ProxyService.ProxyStatus.WAITING_HOTSPOT -> "WAITING_HOTSPOT"
         }
         sb.append("Status: ").append(statusName).append("\n")
         sb.append("Restarts: ").append(Socks5ProxyService.restartCount).append("\n")

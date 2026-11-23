@@ -120,4 +120,10 @@
     <string name="hint_client_gateway">Client GW 伺服器填 gateway 即可，不用輸入 IP</string>
     <string name="label_advanced">進階設定</string>
     <string name="label_diagnostics">診斷</string>
+    <string name="label_hotspot_link">跟熱點連動</string>
+    <string name="hint_hotspot_link">熱點開了自動啟動代理，關了自動停；通知會一直留著等熱點，按「停止」才完全結束。</string>
+    <string name="status_title_waiting_hotspot">等待熱點</string>
+    <string name="status_waiting_hotspot">熱點一開就自動啟動代理；按「停止」結束。</string>
+    <string name="notification_waiting_hotspot_title">等待熱點開啟</string>
+    <string name="notification_waiting_hotspot_text">熱點開啟後自動啟動代理</string>
 </resources>

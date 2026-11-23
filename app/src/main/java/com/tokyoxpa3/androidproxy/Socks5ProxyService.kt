@@ -20,7 +20,7 @@ import java.io.Closeable
 
 class Socks5ProxyService : Service() {
 
-    enum class ProxyStatus { STARTING, RUNNING, PAUSED, RESTARTING, STOPPED, FAILED }
+    enum class ProxyStatus { STARTING, RUNNING, PAUSED, RESTARTING, STOPPED, FAILED, WAITING_HOTSPOT }
     
     private val serviceScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     @Volatile
@@ -44,6 +44,14 @@ class Socks5ProxyService : Service() {
     @Volatile
     private var loopsJob: Job? = null
     private var wakeLock: android.os.PowerManager.WakeLock? = null
+    // [GW 熱點連動] 開著時：熱點開→自動啟動代理，熱點關→停代理但服務與通知留著等下一次。
+    @Volatile private var hotspotLinked = false
+    @Volatile private var linkedPort = 1080
+    // 熱點關掉後正在收掉引擎（非同步），這段時間不要再判斷熱點狀態，避免剛停又重開疊在一起。
+    @Volatile private var standbyTransition = false
+    private var hotspotPollJob: Job? = null
+    private var apStateReceiver: android.content.BroadcastReceiver? = null
+    private val hotspotLock = Any()
     
     private val networkManager by lazy { 
         com.tokyoxpa3.androidproxy.network.CellularNetworkManager(this) 
@@ -293,6 +301,9 @@ class Socks5ProxyService : Service() {
         // 收到 START 設 true、收到 STOP 設 false；失敗或被系統殺掉不改它，
         // 所以「使用者按過停止」的代理開機後不會被悄悄拉起來。
         const val PREF_AUTO_START = "auto_start_on_boot"
+        const val PREF_HOTSPOT_LINK = "hotspot_link"
+        private const val HOTSPOT_POLL_MS = 5_000L
+        private const val LINKED_RETRY_DELAY_MS = 15_000L
         const val PREF_WAS_RUNNING = "was_running"
         // 由 BootReceiver 發出的啟動帶此 extra：開機初期蜂巢式 / Wi-Fi 常常還沒就緒，
         // 這種啟動失敗時改為延遲重試，而不是直接 FAILED 收掉。
@@ -458,6 +469,8 @@ class Socks5ProxyService : Service() {
         if (intent.action == ACTION_STOP_PROXY) {
             autoStartRetriesLeft = 0
             prefs.edit().putBoolean(PREF_WAS_RUNNING, false).apply()
+            hotspotLinked = false
+            stopHotspotWatch()
             stopProxy()
         } else {
             prefs.edit().putBoolean(PREF_WAS_RUNNING, true).apply()
@@ -469,6 +482,15 @@ class Socks5ProxyService : Service() {
             // （restartProxy 走的是內部路徑，不會經過這裡）
             restartCount = 0
             lastHealthCheck = null
+            linkedPort = port
+            hotspotLinked = prefs.getBoolean(PREF_HOTSPOT_LINK, false)
+            if (hotspotLinked) {
+                startHotspotWatch()
+                if (!isHotspotOn()) {
+                    enterStandby()
+                    return START_NOT_STICKY
+                }
+            }
             startProxy(port)
         }
         return START_NOT_STICKY
@@ -489,8 +511,100 @@ class Socks5ProxyService : Service() {
             .setSmallIcon(android.R.drawable.ic_dialog_info).setContentIntent(pi).setOngoing(true).build()
     }
     
+    private fun isHotspotOn(): Boolean = try {
+        com.tokyoxpa3.androidproxy.network.HotspotManager.getWiFiHotspotIP(applicationContext) != null
+    } catch (e: Exception) { false }
+
+    private fun startForegroundCompat(notif: Notification) {
+        if (android.os.Build.VERSION.SDK_INT >= 29) {
+            startForeground(NOTIFICATION_ID, notif, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
+        } else {
+            startForeground(NOTIFICATION_ID, notif)
+        }
+    }
+
+    /** 等熱點：服務與通知留著（系統不會殺），代理不開，放掉 wakelock 省電。 */
+    private fun enterStandby() {
+        isServiceRunning = true
+        startForegroundCompat(createNotification(
+            getString(R.string.notification_waiting_hotspot_title),
+            getString(R.string.notification_waiting_hotspot_text)))
+        updateStatus(ProxyStatus.WAITING_HOTSPOT)
+        wakeLock?.let { if (it.isHeld) it.release() }
+    }
+
+    private fun startHotspotWatch() {
+        synchronized(hotspotLock) {
+            if (apStateReceiver == null) {
+                val r = object : android.content.BroadcastReceiver() {
+                    override fun onReceive(c: Context?, i: Intent?) {
+                        serviceScope.launch { onHotspotMaybeChanged() }
+                    }
+                }
+                val filter = android.content.IntentFilter("android.net.wifi.WIFI_AP_STATE_CHANGED")
+                try {
+                    if (android.os.Build.VERSION.SDK_INT >= 33) registerReceiver(r, filter, Context.RECEIVER_EXPORTED)
+                    else registerReceiver(r, filter)
+                    apStateReceiver = r
+                } catch (e: Exception) { Log.w(TAG, "註冊熱點廣播失敗，只靠輪詢", e) }
+            }
+            // vivo 等 ROM 不一定送熱點廣播，另外每 5 秒自己看一次當後備
+            if (hotspotPollJob == null) {
+                hotspotPollJob = serviceScope.launch {
+                    while (isActive) { delay(HOTSPOT_POLL_MS); onHotspotMaybeChanged() }
+                }
+            }
+        }
+    }
+
+    private fun stopHotspotWatch() {
+        synchronized(hotspotLock) {
+            hotspotPollJob?.cancel(); hotspotPollJob = null
+            apStateReceiver?.let { try { unregisterReceiver(it) } catch (e: Exception) {} }
+            apStateReceiver = null
+        }
+    }
+
+    private fun onHotspotMaybeChanged() {
+        if (!hotspotLinked || standbyTransition) return
+        val on = isHotspotOn()
+        synchronized(hotspotLock) {
+            if (!hotspotLinked || standbyTransition || engineStarting) return
+            val status = currentStatus
+            if (on && status == ProxyStatus.WAITING_HOTSPOT) {
+                Log.i(TAG, "熱點開了，自動啟動代理")
+                stopRequested = false
+                restartCount = 0
+                lastHealthCheck = null
+                startProxy(linkedPort)
+            } else if (!on && (isProxyRunning || proxyPaused)) {
+                Log.i(TAG, "熱點關了，停代理並等下一次熱點")
+                stopProxy(keepService = true)
+            } else if (!on && status == ProxyStatus.FAILED) {
+                enterStandby()
+            }
+        }
+    }
+
+    /** UI 在服務執行中切換「跟熱點連動」時呼叫，立即生效。 */
+    fun applyHotspotLink(enabled: Boolean) {
+        if (!isServiceRunning) return
+        hotspotLinked = enabled
+        if (enabled) {
+            startHotspotWatch()
+            serviceScope.launch { onHotspotMaybeChanged() }
+        } else {
+            stopHotspotWatch()
+            if (currentStatus == ProxyStatus.WAITING_HOTSPOT) {
+                stopRequested = false
+                startProxy(linkedPort)
+            }
+        }
+    }
+
     private fun startProxy(port: Int) {
         if (stopRequested || isProxyRunning) return
+        wakeLock?.let { if (!it.isHeld) it.acquire() }
         // 上一輪的失敗訊息不得殘留，否則診斷報告會同時出現 RUNNING 與舊的 LastError
         lastErrorMessage = null
         isServiceRunning = true
@@ -500,11 +614,7 @@ class Socks5ProxyService : Service() {
         // startForeground(id, notification, type) 的三參數重載是 API 29 才加入；
         // minSdk 26 的裝置（Android 8/9）呼叫會 NoSuchMethodError 讓服務崩潰。
         val startNotif = createNotification(getString(R.string.notification_proxying), getString(R.string.notification_init_network))
-        if (android.os.Build.VERSION.SDK_INT >= 29) {
-            startForeground(NOTIFICATION_ID, startNotif, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE)
-        } else {
-            startForeground(NOTIFICATION_ID, startNotif)
-        }
+        startForegroundCompat(startNotif)
         
         serviceScope.launch {
             try {
@@ -822,6 +932,18 @@ class Socks5ProxyService : Service() {
             serviceScope.launch {
                 delay(AUTO_START_RETRY_DELAY_MS)
                 if (!stopRequested) startProxy(autoStartPort)
+            }
+            return
+        }
+        if (hotspotLinked && !stopRequested) {
+            // 熱點連動：失敗不收服務，稍後重試；熱點已關就回到等待
+            Log.w(TAG, "熱點連動：啟動失敗，${LINKED_RETRY_DELAY_MS / 1000}s 後重試")
+            serviceScope.launch {
+                delay(LINKED_RETRY_DELAY_MS)
+                synchronized(hotspotLock) {
+                    if (!hotspotLinked || stopRequested || isProxyRunning || engineStarting) return@launch
+                    if (isHotspotOn()) startProxy(linkedPort) else enterStandby()
+                }
             }
             return
         }
@@ -1325,7 +1447,7 @@ class Socks5ProxyService : Service() {
         }
     }
 
-    private fun stopProxy() {
+    private fun stopProxy(keepService: Boolean = false) {
         // 停止旗標必須在所有 guard 之前設定：isProxyRunning 要等啟動協程實際
         // 開始執行才會為 true，若停止指令落在這個視窗內，早退 guard 會吞掉
         // 停止意圖，代理在使用者按下停止後照常啟動。startProxy 的各個檢查點
@@ -1333,6 +1455,7 @@ class Socks5ProxyService : Service() {
         stopRequested = true
         loopsJob?.cancel(); loopsJob = null
         if (!isProxyRunning && !proxyPaused) {
+            if (keepService) { enterStandby(); return }
             // 服務可能是被本 STOP intent 建立的（先前早已停止）：直接收掉，
             // 否則 onCreate 拿走的 wakelock 與服務本身永遠不會釋放
             isServiceRunning = false
@@ -1344,7 +1467,7 @@ class Socks5ProxyService : Service() {
         proxyPaused = false
         isServiceRunning = false
         lastErrorMessage = null
-        updateStatus(ProxyStatus.STOPPED)
+        if (keepService) standbyTransition = true else updateStatus(ProxyStatus.STOPPED)
         serviceScope.launch {
             try {
                 appendEngineStatsToFile() // 停止前記錄最後一筆 stats
@@ -1358,10 +1481,17 @@ class Socks5ProxyService : Service() {
                 }
                 activeSockets.clear()
                 dnsCache.clear()
-                
+
+                if (keepService && hotspotLinked) {
+                    enterStandby()
+                    standbyTransition = false
+                    onHotspotMaybeChanged()
+                    return@launch
+                }
+                standbyTransition = false
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
-            } catch (e: Exception) { stopSelf() }
+            } catch (e: Exception) { standbyTransition = false; stopSelf() }
         }
     }
     
@@ -1537,6 +1667,8 @@ class Socks5ProxyService : Service() {
 
     override fun onDestroy() {
         if (instance === this) instance = null
+        hotspotLinked = false
+        stopHotspotWatch()
         stopRequested = true
         isProxyRunning = false
         proxyPaused = false
