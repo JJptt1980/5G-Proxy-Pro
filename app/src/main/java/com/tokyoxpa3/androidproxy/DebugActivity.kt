@@ -136,6 +136,7 @@ class DebugActivity : Activity() {
                 if (live != null && this@DebugActivity::cellularIPText.isInitialized) {
                     val text = getString(R.string.cellular_ip_format, live)
                     if (cellularIPText.text != text) cellularIPText.text = text
+                    if (netCellIp != live) { netCellIp = live; renderConnectInfo() }
                 }
             } catch (e: Exception) {
                 Log.e("DebugActivity", "ip refresh failed", e)
@@ -148,6 +149,8 @@ class DebugActivity : Activity() {
         super.onResume()
         ipRefreshHandler.removeCallbacks(ipRefreshRunnable)
         ipRefreshHandler.post(ipRefreshRunnable)
+        // 回到前景就自動刷新連線資訊（熱點可能剛開或剛關）
+        updateNetworkStatus()
     }
 
     override fun onPause() {
@@ -723,9 +726,12 @@ class DebugActivity : Activity() {
             addView(selfTestResultText)
         }
         // ── GW 版：統一配色 ──
+        // 首頁固定一頁：狀態卡 → 連線資訊 → 流量 →（空白）→ [設定][診斷] → 主按鈕（拇指區）。
+        // 進階設定與診斷改成從下往上滑出的面板，首頁不會因展開而變長。
+        actionBar?.hide()
         rootLayout.setBackgroundColor(cPageBg)
-        rootLayout.setPadding(dp(16), dp(12), dp(16), dp(32))
-        titleText.apply { textSize = 22f; setTextColor(cText); setPadding(0, 0, 0, dp(12)) }
+        rootLayout.setPadding(dp(16), dp(8), dp(16), dp(16))
+        rootLayout.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         listOf(portInput, authUserInput, authPassInput).forEach { styleField(it) }
         authPassInput.typeface = Typeface.DEFAULT
         listOf(portLayout, authLayout, passLayout).forEach { row ->
@@ -740,7 +746,9 @@ class DebugActivity : Activity() {
         }
         (autoStartLayout.getChildAt(0) as CheckBox).apply {
             setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent)
+            minHeight = dp(44)
         }
+        (autoStartLayout.getChildAt(1) as TextView).setTextColor(cTextSecondary)
         // [GW 熱點連動] 熱點開→自動啟動代理，關→自動停（通知留著等下一次）
         val hotspotLinkLayout = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -748,6 +756,7 @@ class DebugActivity : Activity() {
             addView(CheckBox(this@DebugActivity).apply {
                 text = getString(R.string.label_hotspot_link)
                 textSize = 16f
+                minHeight = dp(44)
                 setTextColor(cText)
                 buttonTintList = ColorStateList.valueOf(cAccent)
                 isChecked = authPrefs.getBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, false)
@@ -763,20 +772,91 @@ class DebugActivity : Activity() {
                 setPadding(dp(4), 0, dp(4), 0)
             })
         }
-        udpVerboseCheck.apply { setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent) }
+        udpVerboseCheck.apply { setTextColor(cText); buttonTintList = ColorStateList.valueOf(cAccent); minHeight = dp(44) }
         selfTestResultText.setTextColor(cText)
-        // 首頁要一頁放得下：IP 行字小一點、間距緊一點；熱點那行粗體但不放大，避免斷成兩行
-        listOf(wifiIPText, hotspotIPText, usbTetherIPText, cellularIPText).forEach {
-            it.setTextColor(cText); it.textSize = 15f; it.setPadding(0, dp(2), 0, dp(2))
+
+        // App 名稱：小字，取代標題列
+        val appLabel = TextView(this).apply {
+            text = getString(R.string.service_title) + " GW"
+            textSize = 13f
+            setTextColor(cTextSecondary)
+            setPadding(dp(4), 0, 0, dp(8))
         }
-        hotspotIPText.setTypeface(hotspotIPText.typeface, Typeface.BOLD)
+        statusText.apply { maxLines = 2; ellipsize = android.text.TextUtils.TruncateAt.END }
+
+        // 連線資訊：只放大 Client 要填的那組 IP:埠，其他網路縮成一行灰字
+        ipCard.removeAllViews()
+        connectPrimaryText = TextView(this).apply {
+            text = getString(R.string.net_fetching)
+            textSize = 24f
+            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            fontFeatureSettings = "tnum"
+            setTextColor(cText)
+            setPadding(0, dp(2), 0, 0)
+        }
+        connectViaText = TextView(this).apply {
+            textSize = 13f
+            setTextColor(cTextSecondary)
+        }
+        connectSummaryText = TextView(this).apply {
+            textSize = 13f
+            setTextColor(cTextSecondary)
+            fontFeatureSettings = "tnum"
+            setPadding(0, dp(8), 0, 0)
+            maxLines = 2
+        }
+        val refreshLink = TextView(this).apply {
+            text = getString(R.string.btn_refresh_short)
+            textSize = 14f
+            setTextColor(cAccent)
+            gravity = Gravity.CENTER
+            minHeight = dp(44)
+            setPadding(dp(12), 0, 0, 0)
+            setOnClickListener {
+                it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                refreshStatus()
+            }
+        }
+        ipCard.addView(LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            addView(sectionLabel(getString(R.string.label_connect_info)).apply { setPadding(0, 0, 0, 0) },
+                LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+            addView(refreshLink)
+        })
+        ipCard.addView(connectPrimaryText)
+        ipCard.addView(connectViaText)
         ipCard.addView(TextView(this).apply {
             text = getString(R.string.hint_client_gateway)
             textSize = 13f
             setTextColor(cTextSecondary)
-            setPadding(0, 0, 0, dp(4))
-        }, 0)
-        ipCard.addView(sectionLabel(getString(R.string.label_connect_info)), 0)
+            setPadding(0, dp(8), 0, 0)
+        })
+        ipCard.addView(connectSummaryText)
+        renderConnectInfo()
+
+        // 流量：同一個字色、等寬數字；沒流量時只顯示一句話
+        (trafficCard.getChildAt(0) as TextView).apply {
+            setTextColor(cTextSecondary); textSize = 13f; setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
+            setPadding(0, 0, 0, dp(6))
+        }
+        trafficCols = trafficCard.getChildAt(1)
+        listOf(trafficUploadValue, trafficDownloadValue).forEach {
+            it.setTextColor(cText); it.textSize = 20f
+            it.typeface = Typeface.DEFAULT_BOLD; it.fontFeatureSettings = "tnum"
+        }
+        listOf(trafficUploadTotal, trafficDownloadTotal).forEach {
+            it.setTextColor(cTextSecondary); it.fontFeatureSettings = "tnum"
+        }
+        trafficEmptyText = TextView(this).apply {
+            text = getString(R.string.traffic_empty)
+            textSize = 15f
+            setTextColor(cTextSecondary)
+            setPadding(0, dp(4), 0, dp(4))
+        }
+        trafficCard.addView(trafficEmptyText)
+        resetTrafficLabels()
+
         mainButton.apply {
             isAllCaps = false
             stateListAnimator = null
@@ -784,58 +864,188 @@ class DebugActivity : Activity() {
             setTypeface(typeface, Typeface.BOLD)
             setPadding(0, 0, 0, 0)
             layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)).apply { topMargin = dp(12) }
+            // 按下微縮，放開彈回
+            setOnTouchListener { v, e ->
+                when (e.actionMasked) {
+                    android.view.MotionEvent.ACTION_DOWN ->
+                        v.animate().scaleX(0.97f).scaleY(0.97f).setDuration(90).start()
+                    android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL ->
+                        v.animate().scaleX(1f).scaleY(1f).setDuration(220)
+                            .setInterpolator(android.view.animation.OvershootInterpolator(2f)).start()
+                }
+                false
+            }
         }
-        listOf(selfTestButton, copyDiagnosticsButton, refreshButton).forEach { styleSecondaryButton(it) }
+        listOf(selfTestButton, copyDiagnosticsButton).forEach { styleSecondaryButton(it) }
         (0 until diagCard.childCount).map { diagCard.getChildAt(it) }
             .filterIsInstance<Button>().forEach { styleSecondaryButton(it) }
-        // 並發連線提示收進進階設定，首頁不再佔三行
         limitHintText.gravity = Gravity.START
+        limitHintText.setTextColor(cTextSecondary)
         limitHintText.setPadding(0, dp(8), 0, 0)
-        val advancedBody = createCard().apply {
+        val advancedBody = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             addView(portLayout); addView(authLayout); addView(passLayout); addView(autoStartLayout)
             addView(hotspotLinkLayout)
             addView(limitHintText)
         }
-        // 刷新狀態收進診斷卡最上面
-        (refreshButton.layoutParams as? LinearLayout.LayoutParams)?.apply { topMargin = 0; bottomMargin = dp(8) }
-        diagCard.addView(refreshButton, 0)
-        val advancedHeader = collapsibleHeader(R.string.label_advanced, "ui_advanced_expanded", advancedBody)
-        val diagHeader = collapsibleHeader(R.string.label_diagnostics, "ui_diag_expanded", diagCard)
-        // 兩個收合標題並排成一行
-        val headerRow = LinearLayout(this).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(10); bottomMargin = dp(4) }
-            addView(advancedHeader, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { rightMargin = dp(5) })
-            addView(diagHeader, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { leftMargin = dp(5) })
-        }
-        listOf(advancedHeader, diagHeader).forEach { it.setPadding(dp(16), dp(14), dp(16), dp(14)) }
-        listOf(ipCard, trafficCard).forEach {
-            (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(10)
-        }
-        (diagCard.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(4)
+        diagCard.background = null
+        diagCard.setPadding(0, 0, 0, 0)
+        val advancedPanel = makePanel(R.string.label_advanced, advancedBody)
+        val diagPanel = makePanel(R.string.label_diagnostics, diagCard)
 
-        // 版面：狀態卡 → 主按鈕 → 連線資訊 → 流量 → [進階設定][診斷]（展開內容在下方）
-        // 標題列已顯示 App 名稱，畫面內的大標題不再重複
+        // 次要入口：一列兩個小按鈕
+        fun entryButton(titleRes: Int, panel: android.app.Dialog) = TextView(this).apply {
+            text = getString(titleRes) + "  ›"
+            textSize = 15f
+            setTextColor(cAccent)
+            gravity = Gravity.CENTER
+            background = rounded(cCardBg, 12)
+            minHeight = dp(44)
+            setOnClickListener {
+                it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+                panel.show()
+            }
+        }
+        val entryRow = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            addView(entryButton(R.string.label_settings_short, advancedPanel),
+                LinearLayout.LayoutParams(0, dp(44), 1f).apply { rightMargin = dp(6) })
+            addView(entryButton(R.string.label_diagnostics, diagPanel),
+                LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(6) })
+        }
+        listOf(ipCard, trafficCard).forEach {
+            (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(12)
+        }
+
+        rootLayout.addView(appLabel)
         rootLayout.addView(statusCard)
-        rootLayout.addView(mainButton)
         rootLayout.addView(ipCard)
         rootLayout.addView(trafficCard)
-        rootLayout.addView(headerRow)
-        rootLayout.addView(advancedBody)
-        rootLayout.addView(diagCard)
+        rootLayout.addView(View(this), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        rootLayout.addView(entryRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(12) })
+        rootLayout.addView(mainButton)
 
-        // 包 ScrollView：橫向或小螢幕時內容高度超過可視區域，
-        // 沒有捲動能力時 mainButton 會落在折疊線之下完全無法點擊
+        // 保底：字體調很大、真的放不下時才能捲；一般情況 fillViewport 讓內容剛好填滿一頁
         val scrollView = ScrollView(this).apply {
             isFillViewport = true
             setBackgroundColor(cPageBg)
+            isVerticalScrollBarEnabled = false
+            overScrollMode = View.OVER_SCROLL_NEVER
         }
         scrollView.addView(rootLayout)
         setContentView(scrollView)
     }
-    
+
+    /** 從下往上滑出的面板：背景變暗、點外面或往下拉標題就收起。 */
+    private fun makePanel(titleRes: Int, body: View): android.app.Dialog {
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        val sheet = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                setColor(cCardBg)
+                val r = dp(20).toFloat()
+                cornerRadii = floatArrayOf(r, r, r, r, 0f, 0f, 0f, 0f)
+            }
+            setPadding(dp(16), dp(8), dp(16), dp(24))
+        }
+        val grabber = View(this).apply {
+            background = rounded(cStroke, 3)
+        }
+        val header = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(grabber, LinearLayout.LayoutParams(dp(36), dp(5)).apply {
+                gravity = Gravity.CENTER_HORIZONTAL; bottomMargin = dp(8)
+            })
+            addView(LinearLayout(this@DebugActivity).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                addView(TextView(this@DebugActivity).apply {
+                    text = getString(titleRes)
+                    textSize = 18f
+                    setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                    setTextColor(cText)
+                }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+                addView(TextView(this@DebugActivity).apply {
+                    text = getString(R.string.btn_done)
+                    textSize = 16f
+                    setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                    setTextColor(cAccent)
+                    gravity = Gravity.CENTER
+                    minHeight = dp(44)
+                    setPadding(dp(12), 0, 0, 0)
+                    setOnClickListener { dialog.dismiss() }
+                })
+            })
+        }
+        // 往下拉標題列收起
+        var downY = 0f
+        header.setOnTouchListener { _, e ->
+            when (e.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> { downY = e.rawY; true }
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    sheet.translationY = (e.rawY - downY).coerceAtLeast(0f); true
+                }
+                android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                    if (sheet.translationY > dp(80)) dialog.dismiss()
+                    else sheet.animate().translationY(0f).setDuration(200).start()
+                    true
+                }
+                else -> false
+            }
+        }
+        sheet.addView(header)
+        sheet.addView(ScrollView(this).apply {
+            isVerticalScrollBarEnabled = false
+            addView(body, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
+        }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(8) })
+        dialog.setContentView(sheet)
+        dialog.setCanceledOnTouchOutside(true)
+        dialog.setOnShowListener { sheet.translationY = 0f }
+        dialog.window?.apply {
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+            setGravity(Gravity.BOTTOM)
+            setWindowAnimations(android.R.style.Animation_InputMethod)
+            setDimAmount(0.45f)
+            setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
+        return dialog
+    }
+
+    // ── 連線資訊（首頁大字）──
+    private var netWifiIp: String? = null
+    private var netHotspotIp: String? = null
+    private var netUsbIp: String? = null
+    private var netCellIp: String? = null
+    private var netLoaded = false
+    private lateinit var connectPrimaryText: TextView
+    private lateinit var connectViaText: TextView
+    private lateinit var connectSummaryText: TextView
+    private var trafficCols: View? = null
+    private var trafficEmptyText: TextView? = null
+
+    private fun renderConnectInfo() {
+        if (!this::connectPrimaryText.isInitialized) return
+        val port = portInput.text.toString().toIntOrNull() ?: 1080
+        val (ip, viaRes) = when {
+            netHotspotIp != null -> netHotspotIp to R.string.connect_via_hotspot
+            netUsbIp != null -> netUsbIp to R.string.connect_via_usb
+            netWifiIp != null -> netWifiIp to R.string.connect_via_wifi
+            else -> null to 0
+        }
+        if (ip != null) {
+            connectPrimaryText.text = "$ip:$port"
+            connectViaText.text = getString(viaRes)
+        } else {
+            connectPrimaryText.text = getString(if (netLoaded) R.string.connect_none_title else R.string.net_fetching)
+            connectViaText.text = if (netLoaded) getString(R.string.connect_none_hint) else ""
+        }
+        val off = getString(R.string.net_off)
+        val cell = netCellIp ?: getString(R.string.net_fetching)
+        connectSummaryText.text = getString(R.string.net_summary, netWifiIp ?: off, netUsbIp ?: off, cell)
+    }
+
     // ── GW 版樣式工具：配色跟 5G Proxy Client GW 一致，依主題深淺切換 ──
     private fun dp(v: Int): Int = (v * resources.displayMetrics.density).toInt()
     private val isDark: Boolean by lazy {
@@ -899,32 +1109,8 @@ class DebugActivity : Activity() {
         ))
     }
 
-    /** 可收合區塊的標題列；展開狀態記在 proxy_config 偏好設定。 */
-    private fun collapsibleHeader(titleRes: Int, prefKey: String, body: View): TextView {
-        val prefs = getSharedPreferences("proxy_config", Context.MODE_PRIVATE)
-        val header = TextView(this).apply {
-            textSize = 16f
-            setTextColor(cAccent)
-            background = rounded(cCardBg, 16)
-            setPadding(dp(18), dp(16), dp(18), dp(16))
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = dp(16); bottomMargin = dp(4) }
-        }
-        fun setExpanded(expanded: Boolean) {
-            body.visibility = if (expanded) View.VISIBLE else View.GONE
-            header.text = getString(titleRes) + if (expanded) "  ▾" else "  ▸"
-        }
-        setExpanded(prefs.getBoolean(prefKey, false))
-        header.setOnClickListener {
-            val next = body.visibility != View.VISIBLE
-            prefs.edit().putBoolean(prefKey, next).apply()
-            setExpanded(next)
-        }
-        return header
-    }
-    
     private fun toggleProxy() {
+        mainButton.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
         if (!isRunning) {
             startProxyFlow()
         } else {
@@ -1061,10 +1247,14 @@ class DebugActivity : Activity() {
         trafficDownloadValue.text = na
         trafficUploadTotal.text = na
         trafficDownloadTotal.text = na
+        trafficCols?.visibility = View.GONE
+        trafficEmptyText?.visibility = View.VISIBLE
     }
 
     private fun updateTrafficStats() {
         val bytes = NativeEngine.safeGetTrafficBytes() ?: return
+        trafficCols?.visibility = View.VISIBLE
+        trafficEmptyText?.visibility = View.GONE
         val tx = bytes[0]
         val rx = bytes[1]
         val prev = lastTrafficSample
@@ -1296,11 +1486,14 @@ class DebugActivity : Activity() {
                     val ipString = String.format("%d.%d.%d.%d", (ip and 0xff), (ip shr 8 and 0xff), (ip shr 16 and 0xff), (ip shr 24 and 0xff))
                     val port = portInput.text.toString().toIntOrNull() ?: 1080
                     wifiIPText.text = getString(R.string.wifi_proxy_format, ipString, port)
+                    netWifiIp = ipString
                 } else {
                     wifiIPText.text = getString(R.string.wifi_not_connected)
+                    netWifiIp = null
                 }
             } catch (e: Exception) {
                 wifiIPText.text = getString(R.string.wifi_fetch_failed)
+                netWifiIp = null
             }
 
             // 以下區段先前沒有 try/catch：CellularNetworkManager 的 ConnectivityManager
@@ -1315,6 +1508,7 @@ class DebugActivity : Activity() {
                 } else {
                     hotspotIPText.text = getString(R.string.hotspot_ip_disabled)
                 }
+                netHotspotIp = hotspotIP
 
                 val usbTetherIP = withContext(Dispatchers.IO) {
                     HotspotManager.getUsbTetherIP(applicationContext)
@@ -1325,6 +1519,9 @@ class DebugActivity : Activity() {
                 } else {
                     usbTetherIPText.text = getString(R.string.usb_tether_ip_disabled)
                 }
+                netUsbIp = usbTetherIP
+                netLoaded = true
+                renderConnectInfo()
 
                 cellularIPText.text = getString(R.string.cellular_ip_fetching)
                 val cellularNetwork = withContext(Dispatchers.IO) {
@@ -1338,9 +1535,12 @@ class DebugActivity : Activity() {
                         R.string.cellular_ip_format,
                         result.ip ?: getString(R.string.cellular_ip_failed)
                     )
+                    netCellIp = result.ip ?: getString(R.string.net_failed)
                 } else {
                     cellularIPText.text = getString(R.string.cellular_ip_not_locked)
+                    netCellIp = getString(R.string.net_failed)
                 }
+                renderConnectInfo()
             } catch (e: Exception) {
                 Log.e("DebugActivity", "updateNetworkStatus failed", e)
             }

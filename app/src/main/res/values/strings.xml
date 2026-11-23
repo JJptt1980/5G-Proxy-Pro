@@ -13,11 +13,11 @@
     <string name="hotspot_ip_fetching">🛰️ Hotspot IP: Fetching...</string>
     <string name="cellular_ip_fetching">📲 Cellular IP: Fetching...</string>
     <string name="btn_stop_proxy">Stop Proxy</string>
-    <string name="status_proxy_running">✅ 5G Proxy Running</string>
-    <string name="status_starting">🚀 Starting Service...</string>
+    <string name="status_proxy_running">5G Proxy Running</string>
+    <string name="status_starting">Starting service…</string>
     <string name="status_stopped">Service Stopped</string>
-    <string name="status_restarting">🔄 Cellular IP Changed - Auto Restarting Proxy</string>
-    <string name="status_waiting_network">📡 5G Network Lost - Waiting to Reconnect</string>
+    <string name="status_restarting">Cellular IP changed, restarting proxy…</string>
+    <string name="status_waiting_network">5G network lost, waiting…</string>
     <string name="status_failed">❌ Proxy Failed to Start: %1$s</string>
     <string name="status_failed_generic">❌ Proxy Failed to Start</string>
     <string name="last_exit_prefix">Last Exit: </string>
@@ -39,7 +39,7 @@
     <string name="usb_tether_ip_fetching">🔌 USB Tether IP: Fetching...</string>
     <string name="usb_tether_ip_format">🔌 USB Tether Proxy: %1$s:%2$d</string>
     <string name="usb_tether_ip_disabled">🔌 USB Tether: Not Enabled</string>
-    <string name="btn_refresh_status">🔄 Refresh Status</string>
+    <string name="btn_refresh_status">Refresh Status</string>
     <string name="status_refreshing">🔄 Refreshing...</string>
     <string name="notification_proxying">🚀 5G SOCKS5 Proxying</string>
     <string name="notification_init_network">Initializing 5G Network...</string>
@@ -91,9 +91,9 @@ Also set this App\'s battery saver to \"No restrictions\".</string>
     <string name="notification_cellular_stalled">⚠️ Mobile data shows as connected, but no application data is coming back. The proxy can reach the network and complete a TCP handshake, yet nothing arrives after it. Check mobile data itself — first whether the plan still has data or was suspended by the carrier, then APN / reset network settings / OS update. Rebuilding the proxy cannot fix this.</string>
     <string name="error_native_start">Native server failed: %1$s</string>
 
-    <string name="btn_self_test">🧪 Self Test</string>
-    <string name="btn_copy_diagnostics">📋 Copy Diagnostics</string>
-    <string name="btn_copy_log">📄 Copy Log</string>
+    <string name="btn_self_test">Self Test</string>
+    <string name="btn_copy_diagnostics">Copy Diagnostics</string>
+    <string name="btn_copy_log">Copy Log</string>
     <string name="log_hint">No adb needed — paste this into your bug report.</string>
     <string name="log_copied">Log copied (%1$d lines)</string>
     <string name="label_auto_start_on_boot">Start the proxy automatically after a reboot</string>
@@ -110,8 +110,8 @@ Also set this App\'s battery saver to \"No restrictions\".</string>
     <string name="self_test_fail">❌ Self test failed</string>
     <string name="diagnostics_title">5G Proxy Pro Diagnostics</string>
     <string name="diagnostics_copied">Diagnostics copied to clipboard</string>
-    <string name="hint_connection_limit">💡 Tip: Avoid opening too many concurrent connections (e.g. high BitTorrent connection limits) to keep the phone proxy stable.</string>
-    <string name="traffic_card_title">📊 Traffic</string>
+    <string name="hint_connection_limit">Tip: avoid too many concurrent connections (e.g. high BitTorrent limits) to keep the phone proxy stable.</string>
+    <string name="traffic_card_title">Traffic</string>
     <string name="traffic_upload_label">↑ UPLOAD</string>
     <string name="traffic_download_label">↓ DOWNLOAD</string>
     <string name="traffic_na">--</string>
@@ -121,13 +121,26 @@ Also set this App\'s battery saver to \"No restrictions\".</string>
     <string name="status_title_waiting">Waiting for 5G</string>
     <string name="status_title_error">Error</string>
     <string name="label_connect_info">CONNECT FROM CLIENT</string>
-    <string name="hint_client_gateway">In Client GW, set server to "gateway" — no IP needed</string>
+    <string name="hint_client_gateway">In Client, set server to gateway</string>
     <string name="label_advanced">Advanced settings</string>
     <string name="label_diagnostics">Diagnostics</string>
     <string name="label_hotspot_link">Follow the hotspot</string>
     <string name="hint_hotspot_link">Starts the proxy when the hotspot turns on and stops it when it turns off. The notification stays while waiting; press Stop to quit completely.</string>
     <string name="status_title_waiting_hotspot">Waiting for hotspot</string>
-    <string name="status_waiting_hotspot">The proxy starts as soon as the hotspot is on. Press Stop to quit.</string>
+    <string name="status_waiting_hotspot">Starts as soon as the hotspot is on</string>
     <string name="notification_waiting_hotspot_title">Waiting for the hotspot</string>
     <string name="notification_waiting_hotspot_text">The proxy will start when the hotspot turns on</string>
+    <string name="label_settings_short">Settings</string>
+    <string name="btn_refresh_short">Refresh</string>
+    <string name="btn_done">Done</string>
+    <string name="traffic_empty">No traffic yet</string>
+    <string name="connect_via_hotspot">via hotspot</string>
+    <string name="connect_via_usb">via USB tethering</string>
+    <string name="connect_via_wifi">via Wi-Fi</string>
+    <string name="connect_none_title">No network for clients</string>
+    <string name="connect_none_hint">Turn on the hotspot or join Wi-Fi</string>
+    <string name="net_summary">Wi-Fi %1$s · USB %2$s · Cellular %3$s</string>
+    <string name="net_off">off</string>
+    <string name="net_fetching">Fetching…</string>
+    <string name="net_failed">failed</string>
 </resources>

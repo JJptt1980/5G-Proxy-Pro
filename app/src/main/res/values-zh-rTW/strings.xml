@@ -13,11 +13,11 @@
     <string name="hotspot_ip_fetching">🛰️ 熱點分享 IP: 獲取中...</string>
     <string name="cellular_ip_fetching">📲 行動網路 IP: 獲取中...</string>
     <string name="btn_stop_proxy">停止代理</string>
-    <string name="status_proxy_running">✅ 5G Proxy Running</string>
-    <string name="status_starting">🚀 正在啟動服務...</string>
+    <string name="status_proxy_running">5G 代理運作中</string>
+    <string name="status_starting">正在啟動服務…</string>
     <string name="status_stopped">服務已停止</string>
-    <string name="status_restarting">🔄 行動網路 IP 已切換，自動重建代理中...</string>
-    <string name="status_waiting_network">📡 5G 網路已中斷，等待恢復中...</string>
+    <string name="status_restarting">行動網路 IP 換了，自動重建代理中…</string>
+    <string name="status_waiting_network">5G 網路中斷，等待恢復…</string>
     <string name="status_failed">❌ 代理啟動失敗: %1$s</string>
     <string name="status_failed_generic">❌ 代理啟動失敗</string>
     <string name="last_exit_prefix">上次關閉原因：</string>
@@ -39,7 +39,7 @@
     <string name="usb_tether_ip_fetching">🔌 USB 分享 IP: 獲取中...</string>
     <string name="usb_tether_ip_format">🔌 USB 分享代理: %1$s:%2$d</string>
     <string name="usb_tether_ip_disabled">🔌 USB 分享: 未開啟</string>
-    <string name="btn_refresh_status">🔄 刷新狀態</string>
+    <string name="btn_refresh_status">刷新狀態</string>
     <string name="status_refreshing">🔄 正在刷新...</string>
     <string name="notification_proxying">🚀 5G SOCKS5 代理中</string>
     <string name="notification_init_network">正在初始化 5G 網路...</string>
@@ -87,9 +87,9 @@
     <string name="notification_cellular_stalled">⚠️ 行動數據顯示已連線，但沒有任何應用層資料回流。代理能連上網路、也能完成 TCP 握手，之後卻收不到任何位元組。請檢查行動數據本身——先看方案是否還有流量、是否已被電信商停用，其次才是 APN／重置網路設定／系統更新；重建代理無法解決這個問題。</string>
     <string name="error_native_start">原生伺服器啟動失敗: %1$s</string>
 
-    <string name="btn_self_test">🧪 自我檢測</string>
-    <string name="btn_copy_diagnostics">📋 複製診斷報告</string>
-    <string name="btn_copy_log">📄 複製日誌</string>
+    <string name="btn_self_test">自我檢測</string>
+    <string name="btn_copy_diagnostics">複製診斷報告</string>
+    <string name="btn_copy_log">複製日誌</string>
     <string name="log_hint">不需要 adb；回報問題時把這段貼上即可。</string>
     <string name="log_copied">日誌已複製（%1$d 行）</string>
     <string name="label_auto_start_on_boot">重新開機後自動啟動代理</string>
@@ -106,8 +106,8 @@
     <string name="self_test_fail">❌ 自我檢測失敗</string>
     <string name="diagnostics_title">5G Proxy Pro 診斷報告</string>
     <string name="diagnostics_copied">診斷報告已複製到剪貼簿</string>
-    <string name="hint_connection_limit">💡 提示：請避免開啟過多並發連線（例如將 BT 連線數設過高），以免手機網路與代理負載過載造成不穩定。</string>
-    <string name="traffic_card_title">📊 流量</string>
+    <string name="hint_connection_limit">提示：不要開太多並發連線（例如 BT 連線數設太高），手機網路和代理會不穩。</string>
+    <string name="traffic_card_title">流量</string>
     <string name="traffic_upload_label">↑ 上傳</string>
     <string name="traffic_download_label">↓ 下載</string>
     <string name="traffic_na">--</string>
@@ -117,13 +117,26 @@
     <string name="status_title_waiting">等待 5G 網路</string>
     <string name="status_title_error">錯誤</string>
     <string name="label_connect_info">Client 連線資訊</string>
-    <string name="hint_client_gateway">Client GW 伺服器填 gateway 即可，不用輸入 IP</string>
+    <string name="hint_client_gateway">Client 伺服器填 gateway</string>
     <string name="label_advanced">進階設定</string>
     <string name="label_diagnostics">診斷</string>
     <string name="label_hotspot_link">跟熱點連動</string>
     <string name="hint_hotspot_link">熱點開了自動啟動代理，關了自動停；通知會一直留著等熱點，按「停止」才完全結束。</string>
     <string name="status_title_waiting_hotspot">等待熱點</string>
-    <string name="status_waiting_hotspot">熱點一開就自動啟動代理；按「停止」結束。</string>
+    <string name="status_waiting_hotspot">熱點一開就自動啟動</string>
     <string name="notification_waiting_hotspot_title">等待熱點開啟</string>
     <string name="notification_waiting_hotspot_text">熱點開啟後自動啟動代理</string>
+    <string name="label_settings_short">設定</string>
+    <string name="btn_refresh_short">重新整理</string>
+    <string name="btn_done">完成</string>
+    <string name="traffic_empty">還沒有流量</string>
+    <string name="connect_via_hotspot">經由熱點</string>
+    <string name="connect_via_usb">經由 USB 分享</string>
+    <string name="connect_via_wifi">經由 Wi-Fi</string>
+    <string name="connect_none_title">沒有可連線的網路</string>
+    <string name="connect_none_hint">開熱點或連上 Wi-Fi</string>
+    <string name="net_summary">Wi-Fi %1$s · USB %2$s · 行動 %3$s</string>
+    <string name="net_off">未開</string>
+    <string name="net_fetching">取得中…</string>
+    <string name="net_failed">取得失敗</string>
 </resources>
