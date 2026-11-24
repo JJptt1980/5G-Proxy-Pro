@@ -251,7 +251,7 @@ JNIEXPORT jlongArray JNICALL native_get_traffic_bytes(JNIEnv *env, jobject thiz)
 
 // [誰在用] 最近連進來的用戶端：「ip,幾秒前;…」
 JNIEXPORT jstring JNICALL native_get_clients(JNIEnv *env, jobject thiz) {
-    char buf[512];
+    char buf[2560];
     socks5_server_get_clients(buf, sizeof(buf));
     return (*env)->NewStringUTF(env, buf);
 }

@@ -28,9 +28,20 @@ object ClientTracker {
     private const val REALERT_IDLE_SEC = 10 * 60L
     private const val PREFS = "client_names"
 
-    data class Client(val ip: String, val mac: String?, val ageSec: Long) {
-        val key: String get() = mac ?: hostKey(ip)
+    /** tag：Client GW 報上的「<ID>.<名字hex>」，有的話用 ID 認裝置（最準）。 */
+    data class Client(val ip: String, val mac: String?, val ageSec: Long, val tag: String? = null) {
+        val reportedId: String? get() = tag?.substringBefore('.')?.takeIf { it.isNotEmpty() }
+        val reportedName: String? get() = tag?.substringAfter('.', "")?.let { decodeHex(it) }
+        val key: String get() = mac ?: reportedId?.let { "id:$it" } ?: hostKey(ip)
         val active: Boolean get() = ageSec <= ACTIVE_SEC
+    }
+
+    fun decodeHex(h: String): String? {
+        if (h.isEmpty() || h.length % 2 != 0) return null
+        return try {
+            String(ByteArray(h.length / 2) { h.substring(it * 2, it * 2 + 2).toInt(16).toByte() }, Charsets.UTF_8)
+                .takeIf { it.isNotBlank() }
+        } catch (e: NumberFormatException) { null }
     }
 
     @Volatile var clients: List<Client> = emptyList()
@@ -70,9 +81,9 @@ object ClientTracker {
     fun parse(raw: String, arp: Map<String, String>): List<Client> =
         raw.split(';').mapNotNull { part ->
             val f = part.split(',')
-            if (f.size != 2) return@mapNotNull null
+            if (f.size !in 2..3) return@mapNotNull null
             val age = f[1].toLongOrNull() ?: return@mapNotNull null
-            Client(f[0], arp[f[0]], age)
+            Client(f[0], arp[f[0]], age, f.getOrNull(2)?.takeIf { it.isNotEmpty() })
         }.filter { it.ageSec <= FORGET_SEC }.sortedBy { it.ageSec }
 
     /** /proc/net/arp：IP → MAC（只取有效項目）。讀不到就回空表，改用 IP 認裝置。 */
@@ -105,8 +116,17 @@ object ClientTracker {
         lastActive.clear(); primed = false; clients = emptyList()
     }
 
-    fun nameOf(ctx: Context, c: Client): String? =
-        prefs(ctx).getString(c.key, null)?.takeIf { it.isNotBlank() }
+    /** 使用者取的名字。報上 ID 的裝置第一次出現時，沿用它以前用 IP 最後一段存的名字。 */
+    fun nameOf(ctx: Context, c: Client): String? {
+        val sp = prefs(ctx)
+        sp.getString(c.key, null)?.takeIf { it.isNotBlank() }?.let { return it }
+        if (c.reportedId != null && c.mac == null) {
+            val old = sp.getString(hostKey(c.ip), null)?.takeIf { it.isNotBlank() } ?: return null
+            sp.edit().putString(c.key, old).remove(hostKey(c.ip)).apply()
+            return old
+        }
+        return null
+    }
 
     fun setName(ctx: Context, c: Client, name: String) {
         prefs(ctx).edit().apply {
@@ -114,7 +134,7 @@ object ClientTracker {
         }.apply()
     }
 
-    fun displayName(ctx: Context, c: Client): String = nameOf(ctx, c) ?: c.ip
+    fun displayName(ctx: Context, c: Client): String = nameOf(ctx, c) ?: c.reportedName ?: c.ip
 
     private fun notifyConnected(ctx: Context, c: Client) {
         try {
@@ -124,7 +144,7 @@ object ClientTracker {
                     CHANNEL_ID, ctx.getString(R.string.channel_client_connected),
                     NotificationManager.IMPORTANCE_HIGH))
             }
-            val name = nameOf(ctx, c)
+            val name = nameOf(ctx, c) ?: c.reportedName
             val text = if (name != null) "$name（${c.ip}）" else ctx.getString(R.string.client_unnamed_fmt, c.ip)
             val pi = PendingIntent.getActivity(ctx, 1, Intent(ctx, DebugActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

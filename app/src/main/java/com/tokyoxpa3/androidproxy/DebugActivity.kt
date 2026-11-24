@@ -1096,7 +1096,7 @@ class DebugActivity : Activity() {
                 shape = GradientDrawable.OVAL; setColor(if (c.active) cGreen else cGray)
             }
         }, LinearLayout.LayoutParams(dp(8), dp(8)).apply { rightMargin = dp(10) })
-        val name = ClientTracker.nameOf(this@DebugActivity, c)
+        val name = ClientTracker.nameOf(this@DebugActivity, c) ?: c.reportedName
         addView(LinearLayout(this@DebugActivity).apply {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@DebugActivity).apply {
@@ -1125,7 +1125,7 @@ class DebugActivity : Activity() {
 
     private fun showRenameClient(c: ClientTracker.Client) {
         val input = EditText(this).apply {
-            setText(ClientTracker.nameOf(this@DebugActivity, c) ?: "")
+            setText(ClientTracker.nameOf(this@DebugActivity, c) ?: c.reportedName ?: "")
             hint = getString(R.string.clients_rename_hint)
             isSingleLine = true
             textSize = 17f

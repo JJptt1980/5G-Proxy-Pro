@@ -1,6 +1,7 @@
 #include "socks5_protocol.h"
 
 #include <string.h>
+#include <strings.h>
 
 int socks5_method_offered(const unsigned char *methods, int nmethods, int desired_method) {
     for (int i = 0; i < nmethods; i++) {
@@ -121,4 +122,27 @@ void socks5_addr_normalize(const unsigned char *src, int is_v6, unsigned char *o
     } else {
         memcpy(out16, src, 16);
     }
+}
+
+/* [誰在用] Client GW 報名用的假網域：「<ID>.<名字hex>.gw-id.invalid」。 */
+#define GW_ID_SUFFIX ".gw-id.invalid"
+int socks5_is_gw_id_host(const char *host) {
+    if (!host) return 0;
+    size_t n = strlen(host), m = strlen(GW_ID_SUFFIX);
+    return n > m && strcasecmp(host + n - m, GW_ID_SUFFIX) == 0;
+}
+
+/* 取出後綴前的部分，只留 [0-9a-zA-Z.-]；空的或太長回 -1。 */
+int socks5_gw_id_tag(const char *host, char *out, size_t outlen) {
+    if (!socks5_is_gw_id_host(host) || !out || outlen == 0) return -1;
+    size_t n = strlen(host) - strlen(GW_ID_SUFFIX);
+    if (n == 0 || n >= outlen) return -1;
+    for (size_t i = 0; i < n; i++) {
+        char c = host[i];
+        int ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '.' || c == '-';
+        if (!ok) return -1;
+        out[i] = c;
+    }
+    out[n] = '\0';
+    return 0;
 }

@@ -24,3 +24,26 @@ class ClientTrackerKeyTest {
         assertEquals(mapOf("host:76" to "V2126", "host:9" to "平板"), ClientTracker.migrateKeys(old))
     }
 }
+
+class ClientTrackerTagTest {
+    private val hex = "V2126".toByteArray().joinToString("") { "%02x".format(it) }
+
+    @Test fun parseWithTag() {
+        val list = ClientTracker.parse("10.0.0.76,3,ab12cd34.$hex;10.0.0.9,5,", emptyMap())
+        val a = list.first { it.ip == "10.0.0.76" }
+        assertEquals("id:ab12cd34", a.key)
+        assertEquals("V2126", a.reportedName)
+        val b = list.first { it.ip == "10.0.0.9" }
+        assertEquals("host:9", b.key)
+        assertEquals(null, b.reportedName)
+    }
+
+    @Test fun oldFormatStillParses() {
+        assertEquals("host:76", ClientTracker.parse("10.0.0.76,3", emptyMap()).single().key)
+    }
+
+    @Test fun badHexIgnored() {
+        assertEquals(null, ClientTracker.decodeHex("zz"))
+        assertEquals("中", ClientTracker.decodeHex("e4b8ad"))
+    }
+}

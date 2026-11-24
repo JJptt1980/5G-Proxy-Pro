@@ -26,6 +26,7 @@
 #include "ghost_purge.h"
 
 static void client_seen_record(const struct sockaddr_storage *ss);
+static void client_tag_record(int client_fd, const char *host);
 
 extern void jni_attach_thread();
 extern void jni_detach_thread();
@@ -2387,6 +2388,13 @@ static void handle_handshake_fd(int client_fd) {
     if (recv(client_fd, buf, 2, MSG_WAITALL) != 2) goto err;
     port = (buf[0] << 8) | buf[1];
 
+    // [誰在用] Client GW 報名：CONNECT「<ID>.<名字hex>.gw-id.invalid」只記下來、回成功，不連外。
+    if (cmd == 0x01 && socks5_is_gw_id_host(host)) {
+        client_tag_record(client_fd, host);
+        send_zero_reply(client_fd, 0x00);
+        goto err;
+    }
+
     if (cmd == 0x01) { // TCP
         tv.tv_sec = 0; setsockopt(client_fd, SOL_SOCKET, SO_RCVTIMEO, (const char*)&tv, sizeof tv);
         // [item3] CAS 預佔連線數額度（在耗時的 connect 之前），失敗立即歸還，
@@ -2785,7 +2793,8 @@ int socks5_server_set_udp_verbose_log(int on) {
 // [誰在用] 記錄最近連進來的用戶端 IPv4 與最後一次連線時間（最多 16 台），
 // 給 Java 端查 MAC、跳「有裝置連上」通知與首頁清單用。
 #define CLIENT_SEEN_MAX 16
-typedef struct { uint32_t ip; time_t first; time_t last; } client_seen_t;
+// tag：Client GW 報上的「<ID>.<名字hex>」（沒報就空字串）。
+typedef struct { uint32_t ip; time_t first; time_t last; char tag[96]; } client_seen_t;
 static client_seen_t g_clients[CLIENT_SEEN_MAX];
 static pthread_mutex_t g_clients_lock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -2806,8 +2815,27 @@ static void client_seen_record(const struct sockaddr_storage *ss) {
         if (g_clients[i].ip == ip) { slot = i; break; }
         if (g_clients[i].last < g_clients[oldest].last) oldest = i;
     }
-    if (slot < 0) { slot = oldest; g_clients[slot].ip = ip; g_clients[slot].first = now; }
+    if (slot < 0) { slot = oldest; g_clients[slot].ip = ip; g_clients[slot].first = now; g_clients[slot].tag[0] = '\0'; }
     g_clients[slot].last = now;
+    pthread_mutex_unlock(&g_clients_lock);
+}
+
+static void client_tag_record(int client_fd, const char *host) {
+    struct sockaddr_storage ss;
+    socklen_t sl = sizeof(ss);
+    if (getpeername(client_fd, (struct sockaddr *)&ss, &sl) != 0) return;
+    client_seen_record(&ss);
+    uint32_t ip = 0;
+    if (ss.ss_family == AF_INET) ip = ((struct sockaddr_in *)&ss)->sin_addr.s_addr;
+    else if (ss.ss_family == AF_INET6 && IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)&ss)->sin6_addr))
+        memcpy(&ip, &((struct sockaddr_in6 *)&ss)->sin6_addr.s6_addr[12], 4);
+    if (ip == 0) return;
+    char tag[96];
+    if (socks5_gw_id_tag(host, tag, sizeof(tag)) != 0) return;
+    pthread_mutex_lock(&g_clients_lock);
+    for (int i = 0; i < CLIENT_SEEN_MAX; i++) {
+        if (g_clients[i].ip == ip) { memcpy(g_clients[i].tag, tag, sizeof(tag)); break; }
+    }
     pthread_mutex_unlock(&g_clients_lock);
 }
 
@@ -2823,8 +2851,8 @@ void socks5_server_get_clients(char *buf, size_t len) {
         char ipstr[INET_ADDRSTRLEN];
         struct in_addr a = { .s_addr = g_clients[i].ip };
         inet_ntop(AF_INET, &a, ipstr, sizeof(ipstr));
-        int w = snprintf(buf + used, len - used, "%s%s,%ld", used ? ";" : "", ipstr,
-                         (long)(now - g_clients[i].last));
+        int w = snprintf(buf + used, len - used, "%s%s,%ld,%s", used ? ";" : "", ipstr,
+                         (long)(now - g_clients[i].last), g_clients[i].tag);
         if (w < 0 || (size_t)w >= len - used) break;
         used += (size_t)w;
     }

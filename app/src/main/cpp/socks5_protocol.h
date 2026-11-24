@@ -83,6 +83,10 @@ int socks5_udp_tcp_frame_len(const unsigned char len_field[2], int max_len);
  * （domain 長度，為 0 回傳 -1）。atyp 不合法回傳 -1。供握手讀取 addr 用。 */
 int socks5_request_addr_len(unsigned char atyp, unsigned char first_byte);
 
+/* [誰在用] Client GW 報名假網域「<ID>.<名字hex>.gw-id.invalid」 */
+int socks5_is_gw_id_host(const char *host);
+int socks5_gw_id_tag(const char *host, char *out, size_t outlen);
+
 #ifdef __cplusplus
 }
 #endif
