@@ -21,6 +21,9 @@ class BootReceiver : BroadcastReceiver() {
         if (intent.action !in ACTIONS) return
 
         val prefs = context.getSharedPreferences("proxy_config", Context.MODE_PRIVATE)
+        Log.i(Socks5ProxyService.TAG, "BootReceiver: ${intent.action} autoStart=${prefs.getBoolean(Socks5ProxyService.PREF_AUTO_START, false)} " +
+            "hotspotLink=${prefs.getBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, false)} wasRunning=${prefs.getBoolean(Socks5ProxyService.PREF_WAS_RUNNING, false)} " +
+            "serviceRunning=${Socks5ProxyService.isServiceRunning}")
         // GW 熱點連動開著時，也視同開機自動啟動（回到等熱點）
         if (!prefs.getBoolean(Socks5ProxyService.PREF_AUTO_START, false) &&
             !prefs.getBoolean(Socks5ProxyService.PREF_HOTSPOT_LINK, false)) return

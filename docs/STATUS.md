@@ -16,6 +16,7 @@
 - 2026-11-21 已裝到 X200 Pro（先解除安裝原版 1.6.3，設定已清空）。
 
 ## 已定案的決定
+- vivo 要在「設定 → 自動啟動」把 5G Proxy Pro 打開，否則開機、App 更新後的廣播會被 vivo 擋掉（系統廣播記錄 dispatchTime=--，BootReceiver 不會被叫起來），Pro 不會自動恢復。2026-11-24 X200 Pro 已打開，實測更新後 1 秒內自動啟動。設定頁可用 adb 開：`am start -n com.vivo.permissionmanager/.activity.BgStartUpManagerActivity`。
 - 保留原 LICENSE（MIT，版權屬原作者），說明寫在 README-GW.md。
 - 熱點連動等待時只靠前台服務＋常駐通知保活，不持有 wakelock（省電）；Pro 不能自己開熱點（Android 8+ 限制）。
 - 套件名稱不加 `.gw`：Client GW 的同機共存靠 `com.tokyoxpa3.androidproxy` 偵測 Pro。代價是要先解除安裝原版才能裝。
@@ -35,5 +36,4 @@
 - 熱點連動在螢幕關閉、長時間等待下會不會被 vivo 殺掉，還沒實測。
 - 「誰在用」原本想用 MAC 認裝置：adb run-as 讀得到 /proc/net/arp，但 App 實際執行時讀不到（mac=null），所以目前用 IP 最後一段認裝置；兩台撞號，或號碼被別台先拿走時會認錯；熱點和 USB 網路共享的裝置號碼相同時也會混在一起。
 - DnsCacheTest.singleFlightDedupsConcurrentLookups 偶爾失敗（並發時機），重跑會過。
-- 2026-11-24 兩次 adb 更新安裝後，Pro 沒有自動恢復運作（11-23 那次有），要手動按啟動，原因待查。
 - VPN 退路時若 X200 Pro 同時連著 Wi-Fi，流量會走 Wi-Fi 而不是 5G。
