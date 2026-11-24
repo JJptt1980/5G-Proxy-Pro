@@ -29,7 +29,7 @@
 - `upstream` = https://github.com/tokyoxpa3/5G-Proxy-Pro （原專案）
 
 ## 下一步
-- 「誰在用」自動認裝置，依序做：（A 已完成）→ B（已完成） Client 打招呼時報上 ID → D 看網域猜品牌（只存結論）→ E 實驗降 targetSdk 用 netlink 讀 MAC（試不出來就放棄）。
+- 「誰在用」自動認裝置，依序做：（A 已完成）→ B（已完成） Client 打招呼時報上 ID → D 看網域猜品牌（完成，熱點實機待測）→ E 實驗降 targetSdk 用 netlink 讀 MAC（試不出來就放棄）。
 - 實機測試：X200 Pro 開熱點跑 Pro GW，平板用 Client GW 填 gateway 連線。
 
 ## 已知問題
