@@ -25,6 +25,7 @@ extern void socks5_server_set_bind_addrs(const char **addrs, int count);
 extern int socks5_server_is_running(void);
 extern int socks5_server_get_stats(char *out, size_t out_len);
 extern int socks5_server_get_bytes(long long *tx, long long *rx);
+extern void socks5_server_get_clients(char *buf, size_t len);
 // [非同步解析] UDP relay 的網域解析診斷計數（enq/ok/fail/replay/drop/qfull/...）。
 // 舊版解析失敗完全靜默，這個計數就是補上那個缺口，讓「驗證頁卡住」能在 log 裡現形。
 extern int socks5_server_get_dns_stats(char *out, size_t out_len);
@@ -248,6 +249,13 @@ JNIEXPORT jlongArray JNICALL native_get_traffic_bytes(JNIEnv *env, jobject thiz)
     return arr;
 }
 
+// [誰在用] 最近連進來的用戶端：「ip,幾秒前;…」
+JNIEXPORT jstring JNICALL native_get_clients(JNIEnv *env, jobject thiz) {
+    char buf[512];
+    socks5_server_get_clients(buf, sizeof(buf));
+    return (*env)->NewStringUTF(env, buf);
+}
+
 // [非同步解析診斷] UDP relay 網域解析計數（App 內「複製診斷報告」用）。
 JNIEXPORT jstring JNICALL native_get_dns_stats(JNIEnv *env, jobject thiz) {
     char buf[256];
@@ -276,6 +284,7 @@ static const JNINativeMethod gMethods[] = {
     {"isSocks5ServerRunning", "()Z", (void *)native_is_socks5_server_running},
     {"getSocks5Stats", "()Ljava/lang/String;", (void *)native_get_socks5_stats},
     {"getTrafficBytes", "()[J", (void *)native_get_traffic_bytes},
+    {"getClients", "()Ljava/lang/String;", (void *)native_get_clients},
     {"getDnsStats", "()Ljava/lang/String;", (void *)native_get_dns_stats},
     {"getUdpCloseStats", "()Ljava/lang/String;", (void *)native_get_udp_close_stats},
     {"setUdpVerboseLog", "(Z)V", (void *)native_set_udp_verbose_log},

@@ -199,7 +199,7 @@ class Socks5ProxyService : Service() {
             if (android.os.Build.VERSION.SDK_INT >= 29) {
                 // 逾時/失敗 → 回空清單，交由 DnsCache 負快取 3 秒
                 lastDnsPath = "DnsResolver"
-                return resolveWithDnsResolver(network, host) ?: emptyList()
+                return resolveWithDnsResolver(if (egressUnbound) null else network, host) ?: emptyList()
             }
             // 5G 網路劣化時 DNS 可能長時間無回應；加上 1 秒 timeout，
             // 避免 handshake 線程被 DNS 卡死（線程池全滿時新連線會被直接拒絕）。
@@ -229,7 +229,7 @@ class Socks5ProxyService : Service() {
      * 以 DnsResolver API 解析（API 29+）：系統內建重試/逾時，CancellationSignal
      * 可真正取消底層查詢。回傳 null 代表不支援或查詢逾時（呼叫端自行決定 fallback）。
      */
-    private fun resolveWithDnsResolver(network: android.net.Network, host: String): List<java.net.InetAddress>? {
+    private fun resolveWithDnsResolver(network: android.net.Network?, host: String): List<java.net.InetAddress>? {
         val latch = java.util.concurrent.CountDownLatch(1)
         val answer = java.util.concurrent.atomic.AtomicReference<List<java.net.InetAddress>>()
         val signal = android.os.CancellationSignal()
@@ -432,6 +432,16 @@ class Socks5ProxyService : Service() {
         }
 
         createNotificationChannel()
+        // 誰在用：每 3 秒看一次誰連進來（新裝置跳通知、首頁清單）
+        serviceScope.launch {
+            while (isActive) {
+                delay(3000)
+                try {
+                    if (isProxyRunning) ClientTracker.tick(applicationContext)
+                    else if (ClientTracker.clients.isNotEmpty()) ClientTracker.reset()
+                } catch (e: Throwable) { Log.w(TAG, "client tick failed", e) }
+            }
+        }
         val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
         wakeLock = pm.newWakeLock(android.os.PowerManager.PARTIAL_WAKE_LOCK, "5GProxy::WakeLock").apply { acquire() }
         
@@ -655,7 +665,10 @@ class Socks5ProxyService : Service() {
                 // 未包含本 App 時，蜂巢式出口綁定完全可用，拿「存在」當前提會誤殺可用的設定。
                 // 改成直接做那個真正會失敗的動作 —— bindSocket —— 失敗才拒絕；
                 // 「有沒有 VPN」只用來決定把原因歸給誰（純措辭，不影響是否啟動）。
-                if (!canBindCellularEgress(network)) {
+                if (!canBindCellularEgress(network) && isSplitVpnActive()) {
+                    egressUnbound = true
+                    AppLog.w(TAG, "start: VPN 擋住 5G 綁定，但它只接管部分網段，改走系統預設路由")
+                } else if (!canBindCellularEgress(network)) {
                     failStop(
                         if (VpnDetector.isVpnActive(connectivityManager)) {
                             getString(R.string.error_vpn_running)
@@ -1319,6 +1332,49 @@ class Socks5ProxyService : Service() {
         }
     }
 
+    // ── VPN 退路：Tailscale 這類「不可略過」的 VPN 會讓 bindSocket(5G) 回 EPERM。
+    // 只要 VPN 沒有接管預設路由（split tunnel，例如 Tailscale 只收 100.64/10 與家裡網段），
+    // 不綁網路、走系統預設路由一樣會從 5G 出去。綁得回來時自動回到原本的綁定。
+    @Volatile private var egressUnbound = false
+    @Volatile private var splitVpnCheckedAt = 0L
+    @Volatile private var splitVpnCached = false
+
+    /** 有 VPN、且它沒有預設路由（只接管部分網段）。5 秒快取。 */
+    private fun isSplitVpnActive(): Boolean {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now - splitVpnCheckedAt < 5000) return splitVpnCached
+        val cm = connectivityManager
+        val result = try {
+            val vpns = cm.allNetworks.filter {
+                cm.getNetworkCapabilities(it)?.hasTransport(android.net.NetworkCapabilities.TRANSPORT_VPN) == true
+            }
+            vpns.isNotEmpty() && vpns.all { n ->
+                val routes = cm.getLinkProperties(n)?.routes ?: return@all false
+                routes.none { r -> r.destination.prefixLength == 0 }
+            }
+        } catch (e: Exception) { false }
+        splitVpnCached = result
+        splitVpnCheckedAt = now
+        return result
+    }
+
+    /** 綁 5G；被 split VPN 擋住時改走預設路由（不綁），其他失敗照舊丟出。 */
+    private fun bindEgress(bind: () -> Unit) {
+        try {
+            bind()
+            if (egressUnbound) {
+                egressUnbound = false
+                AppLog.i(TAG, "5G 綁定恢復，回到指定 5G 出口")
+            }
+        } catch (e: Exception) {
+            if (!isSplitVpnActive()) throw e
+            if (!egressUnbound) {
+                egressUnbound = true
+                AppLog.w(TAG, "VPN 擋住 5G 綁定（${e.message}），改走系統預設路由")
+            }
+        }
+    }
+
     private fun checkNetworkHealth(network: android.net.Network): NetworkHealthStatus {
         val cm = connectivityManager
         val caps = try { cm.getNetworkCapabilities(network) } catch (e: Exception) { null }
@@ -1330,8 +1386,11 @@ class Socks5ProxyService : Service() {
         // 有任何 VPN 網路（例如同機並存的 5G Proxy Client），5G 真的斷線也會被判成
         // BLOCKED_BY_VPN 而永不自動重建。現在一律以 bind 探測為判據，並且要求蜂巢式
         // 仍被系統驗證可用（VALIDATED）才敢把失敗歸給 VPN —— 詳見 NetworkHealthClassifier。
-        val bindOk = hasInternet && canBindCellularEgress(network)
-        val probeOk = bindOk && healthProbeSucceeds(network)
+        val canBind = hasInternet && canBindCellularEgress(network)
+        // VPN 退路：綁不上但 VPN 只接管部分網段 → 走預設路由仍可用，當作綁定成功、略過綁定式探測
+        val viaDefault = hasInternet && !canBind && isSplitVpnActive()
+        val bindOk = canBind || viaDefault
+        val probeOk = viaDefault || (canBind && healthProbeSucceeds(network))
 
         return NetworkHealthClassifier.classify(
             hasInternetCapability = hasInternet,
@@ -1561,7 +1620,7 @@ class Socks5ProxyService : Service() {
                     } catch (e: Exception) {
                         Log.w(TAG, "UDP socket 緩衝設定失敗，沿用系統預設", e)
                     }
-                    network.bindSocket(ds)
+                    bindEgress { network.bindSocket(ds) }
                     val pfd = android.os.ParcelFileDescriptor.fromDatagramSocket(ds)
                     val fd = pfd.detachFd()
                     activeSockets[fd] = ds
@@ -1611,7 +1670,7 @@ class Socks5ProxyService : Service() {
                             candidate.receiveBufferSize = SOCKET_BUFFER_BYTES
                             candidate.sendBufferSize = SOCKET_BUFFER_BYTES
                             candidate.tcpNoDelay = true
-                            network.bindSocket(candidate)
+                            bindEgress { network.bindSocket(candidate) }
                             candidate.connect(java.net.InetSocketAddress(addr, port), connectTimeout.toInt())
                             candidate
                         } catch (e: Exception) {

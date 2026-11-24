@@ -25,6 +25,8 @@
 #include "udp_dns.h"
 #include "ghost_purge.h"
 
+static void client_seen_record(const struct sockaddr_storage *ss);
+
 extern void jni_attach_thread();
 extern void jni_detach_thread();
 extern int request_java_5g_socket(const char* host, int port, int is_udp);
@@ -2670,8 +2672,11 @@ static void* listener_task(void* arg) {
             // 號碼可能已被重用，交給下一輪 reconcile 以 desired 集合重建。
             if (!(pfds[i].revents & (POLLIN | POLLERR | POLLHUP))) continue;
             for (;;) {
-                int cfd = accept(pfds[i].fd, NULL, NULL);
+                struct sockaddr_storage peer;
+                socklen_t peer_len = sizeof(peer);
+                int cfd = accept(pfds[i].fd, (struct sockaddr *)&peer, &peer_len);
                 if (cfd < 0) break; // EAGAIN / 已關閉
+                client_seen_record(&peer);
 
                 // [執行緒池] 放入握手池佇列；佇列滿（burst/攻擊）時丟棄連線，
                 // 小睡避免 accept 迴圈空轉，不再建立無上限的執行緒
@@ -2777,6 +2782,55 @@ int socks5_server_set_udp_verbose_log(int on) {
 
 // [流量統計] 讀取累計 tx/rx 位元組數（跨 TCP + UDP 所有 worker 加總）。server
 // 未啟動或參數非法回傳 -1；否則回傳 0 並寫入 *tx / *rx（未啟動時兩者皆為 0）。
+// [誰在用] 記錄最近連進來的用戶端 IPv4 與最後一次連線時間（最多 16 台），
+// 給 Java 端查 MAC、跳「有裝置連上」通知與首頁清單用。
+#define CLIENT_SEEN_MAX 16
+typedef struct { uint32_t ip; time_t first; time_t last; } client_seen_t;
+static client_seen_t g_clients[CLIENT_SEEN_MAX];
+static pthread_mutex_t g_clients_lock = PTHREAD_MUTEX_INITIALIZER;
+
+static void client_seen_record(const struct sockaddr_storage *ss) {
+    uint32_t ip = 0;
+    if (ss->ss_family == AF_INET) {
+        ip = ((const struct sockaddr_in *)ss)->sin_addr.s_addr;
+    } else if (ss->ss_family == AF_INET6) {
+        const struct sockaddr_in6 *s6 = (const struct sockaddr_in6 *)ss;
+        if (!IN6_IS_ADDR_V4MAPPED(&s6->sin6_addr)) return;
+        memcpy(&ip, &s6->sin6_addr.s6_addr[12], 4);
+    } else return;
+    if (ip == htonl(INADDR_LOOPBACK)) return;
+    time_t now = time(NULL);
+    pthread_mutex_lock(&g_clients_lock);
+    int slot = -1, oldest = 0;
+    for (int i = 0; i < CLIENT_SEEN_MAX; i++) {
+        if (g_clients[i].ip == ip) { slot = i; break; }
+        if (g_clients[i].last < g_clients[oldest].last) oldest = i;
+    }
+    if (slot < 0) { slot = oldest; g_clients[slot].ip = ip; g_clients[slot].first = now; }
+    g_clients[slot].last = now;
+    pthread_mutex_unlock(&g_clients_lock);
+}
+
+// 格式：「ip,幾秒前;ip,幾秒前」，只列有記錄的。
+void socks5_server_get_clients(char *buf, size_t len) {
+    if (!buf || len == 0) return;
+    buf[0] = '\0';
+    size_t used = 0;
+    time_t now = time(NULL);
+    pthread_mutex_lock(&g_clients_lock);
+    for (int i = 0; i < CLIENT_SEEN_MAX; i++) {
+        if (g_clients[i].ip == 0) continue;
+        char ipstr[INET_ADDRSTRLEN];
+        struct in_addr a = { .s_addr = g_clients[i].ip };
+        inet_ntop(AF_INET, &a, ipstr, sizeof(ipstr));
+        int w = snprintf(buf + used, len - used, "%s%s,%ld", used ? ";" : "", ipstr,
+                         (long)(now - g_clients[i].last));
+        if (w < 0 || (size_t)w >= len - used) break;
+        used += (size_t)w;
+    }
+    pthread_mutex_unlock(&g_clients_lock);
+}
+
 int socks5_server_get_bytes(long long *tx, long long *rx) {
     if (!tx || !rx) return -1;
     long long t = 0, r = 0;

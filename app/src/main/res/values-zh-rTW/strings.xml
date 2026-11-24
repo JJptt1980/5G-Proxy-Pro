@@ -139,4 +139,16 @@
     <string name="net_off">未開</string>
     <string name="net_fetching">取得中…</string>
     <string name="net_failed">取得失敗</string>
+    <string name="channel_client_connected">有人連上</string>
+    <string name="notify_client_connected">有裝置連上 5G 代理</string>
+    <string name="client_unnamed_fmt">%1$s（打開 App 點它可以取名字）</string>
+    <string name="clients_title">誰在用（%1$d）</string>
+    <string name="clients_empty">目前沒人連線</string>
+    <string name="clients_active">使用中</string>
+    <string name="clients_just_now">剛剛</string>
+    <string name="clients_min_ago">%1$d 分鐘前</string>
+    <string name="clients_more">還有 %1$d 台 ›</string>
+    <string name="clients_rename_title">幫這台取名字</string>
+    <string name="clients_rename_hint">例如：V2126 平板</string>
+    <string name="btn_save">儲存</string>
 </resources>

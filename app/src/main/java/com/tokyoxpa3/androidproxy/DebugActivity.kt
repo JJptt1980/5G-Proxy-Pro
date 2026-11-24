@@ -859,6 +859,16 @@ class DebugActivity : Activity() {
         trafficCard.addView(trafficEmptyText)
         resetTrafficLabels()
 
+        // 誰在用：標題含台數，最多列 3 台，點一下取名字
+        clientsCard = createCard()
+        clientsTitle = TextView(this).apply {
+            textSize = 13f; setTextColor(cTextSecondary); setPadding(0, 0, 0, dp(2))
+        }
+        clientsList = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        clientsCard.addView(clientsTitle)
+        clientsCard.addView(clientsList)
+        renderClients()
+
         mainButton.apply {
             isAllCaps = false
             stateListAnimator = null
@@ -915,7 +925,7 @@ class DebugActivity : Activity() {
             addView(entryButton(R.string.label_diagnostics, diagPanel),
                 LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(6) })
         }
-        listOf(ipCard, trafficCard).forEach {
+        listOf(ipCard, trafficCard, clientsCard).forEach {
             (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(12)
         }
 
@@ -923,6 +933,7 @@ class DebugActivity : Activity() {
         rootLayout.addView(statusCard)
         rootLayout.addView(ipCard)
         rootLayout.addView(trafficCard)
+        rootLayout.addView(clientsCard)
         rootLayout.addView(View(this), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         rootLayout.addView(entryRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(12) })
         rootLayout.addView(mainButton)
@@ -1026,6 +1037,130 @@ class DebugActivity : Activity() {
     private lateinit var connectSummaryText: TextView
     private var trafficCols: View? = null
     private var trafficEmptyText: TextView? = null
+    private lateinit var clientsCard: LinearLayout
+    private lateinit var clientsTitle: TextView
+    private lateinit var clientsList: LinearLayout
+    private var shownClientKeys: Set<String> = emptySet()
+    private var clientsExpanded = false
+
+    private fun renderClients() {
+        if (!this::clientsList.isInitialized) return
+        val list = if (Socks5ProxyService.isServiceRunning) ClientTracker.clients else emptyList()
+        clientsTitle.text = getString(R.string.clients_title, list.size)
+        // 有人正在用：整張卡片換成淡綠底、綠色細框、標題變綠，一眼看出「有人連上來」
+        val anyActive = list.any { it.active }
+        clientsCard.background = if (anyActive) {
+            rounded(if (isDark) 0xFF13301D.toInt() else 0xFFE3F8E8.toInt(), 16, cGreen)
+        } else rounded(cCardBg, 16)
+        clientsTitle.setTextColor(if (anyActive) cGreen else cTextSecondary)
+        clientsTitle.setTypeface(Typeface.DEFAULT, if (anyActive) Typeface.BOLD else Typeface.NORMAL)
+        clientsList.removeAllViews()
+        if (list.isEmpty()) {
+            clientsList.addView(TextView(this).apply {
+                text = getString(R.string.clients_empty)
+                textSize = 15f; setTextColor(cTextSecondary); setPadding(0, dp(4), 0, dp(4))
+            })
+            shownClientKeys = emptySet()
+            return
+        }
+        val newKeys = list.map { it.key }.toSet()
+        val fresh = newKeys - shownClientKeys
+        if (shownClientKeys.isNotEmpty() && fresh.isNotEmpty()) {
+            clientsCard.performHapticFeedback(android.view.HapticFeedbackConstants.CONFIRM)
+        }
+        val limit = if (clientsExpanded) list.size else 3
+        list.take(limit).forEach { c ->
+            val row = clientRow(c)
+            if (c.key in fresh && shownClientKeys.isNotEmpty()) {
+                row.alpha = 0f; row.animate().alpha(1f).setDuration(250).start()
+            }
+            clientsList.addView(row)
+        }
+        if (list.size > limit) {
+            clientsList.addView(TextView(this).apply {
+                text = getString(R.string.clients_more, list.size - limit)
+                textSize = 14f; setTextColor(cAccent)
+                minHeight = dp(36); gravity = Gravity.CENTER_VERTICAL
+                setOnClickListener { clientsExpanded = true; renderClients() }
+            })
+        }
+        shownClientKeys = newKeys
+    }
+
+    private fun clientRow(c: ClientTracker.Client): View = LinearLayout(this).apply {
+        orientation = LinearLayout.HORIZONTAL
+        gravity = Gravity.CENTER_VERTICAL
+        minimumHeight = dp(44)
+        addView(View(this@DebugActivity).apply {
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL; setColor(if (c.active) cGreen else cGray)
+            }
+        }, LinearLayout.LayoutParams(dp(8), dp(8)).apply { rightMargin = dp(10) })
+        val name = ClientTracker.nameOf(this@DebugActivity, c)
+        addView(LinearLayout(this@DebugActivity).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@DebugActivity).apply {
+                text = name ?: c.ip
+                textSize = 16f; setTextColor(cText); setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                fontFeatureSettings = "tnum"; maxLines = 1
+            })
+            if (name != null) addView(TextView(this@DebugActivity).apply {
+                text = c.ip; textSize = 12f; setTextColor(cTextSecondary); fontFeatureSettings = "tnum"
+            })
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        addView(TextView(this@DebugActivity).apply {
+            text = when {
+                c.active -> getString(R.string.clients_active)
+                c.ageSec < 120 -> getString(R.string.clients_just_now)
+                else -> getString(R.string.clients_min_ago, (c.ageSec / 60).toInt())
+            }
+            textSize = 13f; setTextColor(if (c.active) cGreen else cTextSecondary)
+            fontFeatureSettings = "tnum"
+        })
+        setOnClickListener {
+            it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+            showRenameClient(c)
+        }
+    }
+
+    private fun showRenameClient(c: ClientTracker.Client) {
+        val input = EditText(this).apply {
+            setText(ClientTracker.nameOf(this@DebugActivity, c) ?: "")
+            hint = getString(R.string.clients_rename_hint)
+            isSingleLine = true
+            textSize = 17f
+            setTextColor(cText); setHintTextColor(cTextSecondary)
+            background = rounded(cFieldBg, 10)
+            setPadding(dp(12), 0, dp(12), 0)
+        }
+        lateinit var panel: android.app.Dialog
+        val body = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(this@DebugActivity).apply {
+                text = c.ip + (c.mac?.let { "  ·  $it" } ?: "")
+                textSize = 13f; setTextColor(cTextSecondary); fontFeatureSettings = "tnum"
+                setPadding(dp(4), 0, 0, dp(8))
+            })
+            addView(input, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)))
+            addView(Button(this@DebugActivity).apply {
+                text = getString(R.string.btn_save)
+                isAllCaps = false; stateListAnimator = null
+                setTextColor(Color.WHITE); textSize = 16f
+                background = rounded(cAccent, 12)
+                setOnClickListener {
+                    ClientTracker.setName(this@DebugActivity, c, input.text.toString())
+                    panel.dismiss(); renderClients()
+                }
+            }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)).apply { topMargin = dp(12) })
+        }
+        panel = makePanel(R.string.clients_rename_title, body)
+        panel.setOnShowListener {
+            input.requestFocus(); input.setSelection(input.text.length)
+            panel.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
+                android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
+        panel.show()
+    }
 
     private fun renderConnectInfo() {
         if (!this::connectPrimaryText.isInitialized) return
@@ -1230,6 +1365,7 @@ class DebugActivity : Activity() {
         trafficPollingJob = activityScope.launch {
             while (Socks5ProxyService.isServiceRunning) {
                 updateTrafficStats()
+                renderClients()
                 delay(1000)
             }
         }
@@ -1251,6 +1387,7 @@ class DebugActivity : Activity() {
         trafficDownloadTotal.text = na
         trafficCols?.visibility = View.GONE
         trafficEmptyText?.visibility = View.VISIBLE
+        renderClients()
     }
 
     private fun updateTrafficStats() {

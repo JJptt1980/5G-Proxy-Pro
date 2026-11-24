@@ -143,4 +143,16 @@ Also set this App\'s battery saver to \"No restrictions\".</string>
     <string name="net_off">off</string>
     <string name="net_fetching">Fetching…</string>
     <string name="net_failed">failed</string>
+    <string name="channel_client_connected">Device connected</string>
+    <string name="notify_client_connected">A device connected</string>
+    <string name="client_unnamed_fmt">%1$s (tap the app to name it)</string>
+    <string name="clients_title">Who\'s using (%1$d)</string>
+    <string name="clients_empty">No one connected</string>
+    <string name="clients_active">In use</string>
+    <string name="clients_just_now">Just now</string>
+    <string name="clients_min_ago">%1$d min ago</string>
+    <string name="clients_more">%1$d more ›</string>
+    <string name="clients_rename_title">Name this device</string>
+    <string name="clients_rename_hint">e.g. V2126 tablet</string>
+    <string name="btn_save">Save</string>
 </resources>

@@ -85,6 +85,8 @@ object NativeEngine {
     external fun isSocks5ServerRunning(): Boolean
     external fun getSocks5Stats(): String
     external fun getTrafficBytes(): LongArray
+    /** 誰在用：最近連進來的用戶端「ip,幾秒前;…」 */
+    external fun getClients(): String
     // [非同步解析診斷] UDP relay 的網域解析計數
     // （enq/ok/fail/replay/drop/qfull/jobfull/lost）。
     // 舊版解析失敗是完全靜默的：客戶端送出的 datagram 永遠等不到回覆，log 裡卻
