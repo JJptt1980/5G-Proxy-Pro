@@ -17,6 +17,7 @@
 - 2026-11-21 已裝到 X200 Pro（先解除安裝原版 1.6.3，設定已清空）。
 
 ## 已定案的決定
+- 不做「降 targetSdk 用 netlink 讀 MAC」（2026-11-24 決定）：鑽 Android 限制、可能影響通知與前景服務；認裝置靠 Client 報名 ID → IP 最後一段 → 猜品牌。
 - vivo 要在「設定 → 自動啟動」把 5G Proxy Pro 打開，否則開機、App 更新後的廣播會被 vivo 擋掉（系統廣播記錄 dispatchTime=--，BootReceiver 不會被叫起來），Pro 不會自動恢復。2026-11-24 X200 Pro 已打開，實測更新後 1 秒內自動啟動。設定頁可用 adb 開：`am start -n com.vivo.permissionmanager/.activity.BgStartUpManagerActivity`。
 - 保留原 LICENSE（MIT，版權屬原作者），說明寫在 README-GW.md。
 - 熱點連動等待時只靠前台服務＋常駐通知保活，不持有 wakelock（省電）；Pro 不能自己開熱點（Android 8+ 限制）。
@@ -29,7 +30,7 @@
 - `upstream` = https://github.com/tokyoxpa3/5G-Proxy-Pro （原專案）
 
 ## 下一步
-- 「誰在用」自動認裝置，依序做：（A 已完成）→ B（已完成） Client 打招呼時報上 ID → D 看網域猜品牌（完成，熱點實機待測）→ E 實驗降 targetSdk 用 netlink 讀 MAC（試不出來就放棄）。
+- 「誰在用」自動認裝置，依序做：（A 已完成）→ B（已完成） Client 打招呼時報上 ID → D 看網域猜品牌（完成，熱點實機待測）。
 - 實機測試：X200 Pro 開熱點跑 Pro GW，平板用 Client GW 填 gateway 連線。
 
 ## 已知問題
