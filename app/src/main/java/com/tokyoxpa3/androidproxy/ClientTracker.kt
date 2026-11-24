@@ -12,6 +12,9 @@ import java.io.File
 /**
  * 誰在用：從 native 拿「最近連進來的 IP」，用熱點的 ARP 表換成 MAC 認裝置，
  * 新裝置開始用代理時跳通知；使用者可替每台裝置取名字（以 MAC 為準，讀不到 MAC 才用 IP）。
+ *
+ * 熱點每次重開網段會換（10.63.154.x → 10.195.54.x），但 Android 熱點的 DHCP 依裝置 MAC
+ * 挑位址，同一台通常拿到同一個最後一段，所以讀不到 MAC 時用「IPv4 最後一段」認裝置。
  */
 object ClientTracker {
     private const val TAG = "ClientTracker"
@@ -26,7 +29,7 @@ object ClientTracker {
     private const val PREFS = "client_names"
 
     data class Client(val ip: String, val mac: String?, val ageSec: Long) {
-        val key: String get() = mac ?: ip
+        val key: String get() = mac ?: hostKey(ip)
         val active: Boolean get() = ageSec <= ACTIVE_SEC
     }
 
@@ -36,6 +39,33 @@ object ClientTracker {
     /** key → 上一次看到「使用中」的時間（epoch 秒）；用來判斷是不是「新連上」 */
     private val lastActive = HashMap<String, Long>()
     private var primed = false
+
+    /** IPv4 → "host:最後一段"；其他（IPv6 等）照原樣。 */
+    fun hostKey(ip: String): String {
+        val p = ip.split('.')
+        return if (p.size == 4 && p.all { it.toIntOrNull() in 0..255 }) "host:${p[3]}" else ip
+    }
+
+    /** 舊版用完整 IPv4 存名字，換成 host:最後一段（已有新鑰匙的不蓋掉）。 */
+    fun migrateKeys(old: Map<String, String>): Map<String, String> {
+        val out = LinkedHashMap<String, String>()
+        old.forEach { (k, v) -> if (hostKey(k) == k) out[k] = v }
+        old.forEach { (k, v) -> val nk = hostKey(k); if (nk != k && nk !in out) out[nk] = v }
+        return out
+    }
+
+    private var migrated = false
+    private fun prefs(ctx: Context): android.content.SharedPreferences {
+        val sp = ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        if (!migrated) {
+            migrated = true
+            @Suppress("UNCHECKED_CAST")
+            val old = sp.all.filterValues { it is String } as Map<String, String>
+            val neu = migrateKeys(old)
+            if (neu != old) sp.edit().clear().apply { neu.forEach { (k, v) -> putString(k, v) } }.apply()
+        }
+        return sp
+    }
 
     fun parse(raw: String, arp: Map<String, String>): List<Client> =
         raw.split(';').mapNotNull { part ->
@@ -76,10 +106,10 @@ object ClientTracker {
     }
 
     fun nameOf(ctx: Context, c: Client): String? =
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).getString(c.key, null)?.takeIf { it.isNotBlank() }
+        prefs(ctx).getString(c.key, null)?.takeIf { it.isNotBlank() }
 
     fun setName(ctx: Context, c: Client, name: String) {
-        ctx.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().apply {
+        prefs(ctx).edit().apply {
             if (name.isBlank()) remove(c.key) else putString(c.key, name.trim())
         }.apply()
     }
