@@ -1096,7 +1096,7 @@ class DebugActivity : Activity() {
                 shape = GradientDrawable.OVAL; setColor(if (c.active) cGreen else cGray)
             }
         }, LinearLayout.LayoutParams(dp(8), dp(8)).apply { rightMargin = dp(10) })
-        val name = ClientTracker.nameOf(this@DebugActivity, c) ?: c.reportedName
+        val name = ClientTracker.nameOf(this@DebugActivity, c) ?: ClientTracker.autoName(c)
         addView(LinearLayout(this@DebugActivity).apply {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@DebugActivity).apply {

@@ -146,3 +146,34 @@ int socks5_gw_id_tag(const char *host, char *out, size_t outlen) {
     out[n] = '\0';
     return 0;
 }
+
+/* [誰在用] 看連去的網域猜品牌。只回代碼，不保留網域本身。
+ * 只收「這個牌子的裝置自己會連」的系統網域，App 網域（例如 Apple Music）不收。 */
+typedef struct { const char *suffix; int brand; } brand_rule_t;
+static const brand_rule_t k_brand_rules[] = {
+    {"vivo.com.cn", SOCKS5_BRAND_VIVO}, {"vivo.com", SOCKS5_BRAND_VIVO}, {"vivoglobal.com", SOCKS5_BRAND_VIVO},
+    {"icloud.com", SOCKS5_BRAND_APPLE}, {"apple.com", SOCKS5_BRAND_APPLE}, {"mzstatic.com", SOCKS5_BRAND_APPLE},
+    {"windowsupdate.com", SOCKS5_BRAND_WINDOWS}, {"msftconnecttest.com", SOCKS5_BRAND_WINDOWS}, {"msftncsi.com", SOCKS5_BRAND_WINDOWS},
+    {"samsungcloud.com", SOCKS5_BRAND_SAMSUNG}, {"samsungapps.com", SOCKS5_BRAND_SAMSUNG}, {"samsungdm.com", SOCKS5_BRAND_SAMSUNG},
+    {"xiaomi.com", SOCKS5_BRAND_XIAOMI}, {"miui.com", SOCKS5_BRAND_XIAOMI}, {"xiaomi.net", SOCKS5_BRAND_XIAOMI},
+    {"heytapmobi.com", SOCKS5_BRAND_OPPO}, {"oppomobile.com", SOCKS5_BRAND_OPPO}, {"coloros.com", SOCKS5_BRAND_OPPO},
+    {"hicloud.com", SOCKS5_BRAND_HUAWEI}, {"dbankcloud.com", SOCKS5_BRAND_HUAWEI},
+};
+
+int socks5_guess_brand(const char *host) {
+    if (!host) return SOCKS5_BRAND_NONE;
+    size_t n = strlen(host);
+    while (n > 0 && host[n - 1] == '.') n--;   /* 結尾的點 */
+    for (size_t i = 0; i < sizeof(k_brand_rules) / sizeof(k_brand_rules[0]); i++) {
+        const char *suf = k_brand_rules[i].suffix;
+        size_t m = strlen(suf);
+        if (n < m || strncasecmp(host + n - m, suf, m) != 0) continue;
+        if (n == m || host[n - m - 1] == '.') return k_brand_rules[i].brand;  /* 整段相符，不吃 notvivo.com */
+    }
+    return SOCKS5_BRAND_NONE;
+}
+
+const char *socks5_brand_code(int brand) {
+    static const char *codes[] = {"", "vivo", "apple", "windows", "samsung", "xiaomi", "oppo", "huawei"};
+    return (brand > 0 && brand < SOCKS5_BRAND_COUNT) ? codes[brand] : "";
+}

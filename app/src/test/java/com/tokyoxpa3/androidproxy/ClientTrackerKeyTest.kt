@@ -47,3 +47,24 @@ class ClientTrackerTagTest {
         assertEquals("中", ClientTracker.decodeHex("e4b8ad"))
     }
 }
+
+class ClientTrackerBrandTest {
+    @Test fun brandParsedAndLabelled() {
+        val c = ClientTracker.parse("10.0.0.9,5,,vivo", emptyMap()).single()
+        assertEquals("vivo", c.brand)
+        assertEquals("host:9", c.key)
+        assertEquals("vivo 手機（猜的）", ClientTracker.autoName(c))
+    }
+
+    @Test fun reportedNameBeatsBrand() {
+        val hex = "V2126".toByteArray().joinToString("") { "%02x".format(it) }
+        val c = ClientTracker.parse("10.0.0.76,3,ab12cd34.$hex,vivo", emptyMap()).single()
+        assertEquals("V2126", ClientTracker.autoName(c))
+    }
+
+    @Test fun unknownBrandIgnored() {
+        val c = ClientTracker.parse("10.0.0.9,5,,", emptyMap()).single()
+        assertEquals(null, ClientTracker.autoName(c))
+        assertEquals(null, ClientTracker.brandLabel(ClientTracker.Client("1.1.1.1", null, 0, null, "nokia")))
+    }
+}

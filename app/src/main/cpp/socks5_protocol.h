@@ -87,6 +87,12 @@ int socks5_request_addr_len(unsigned char atyp, unsigned char first_byte);
 int socks5_is_gw_id_host(const char *host);
 int socks5_gw_id_tag(const char *host, char *out, size_t outlen);
 
+/* [誰在用] 看網域猜品牌（只回代碼，不存網域） */
+enum { SOCKS5_BRAND_NONE = 0, SOCKS5_BRAND_VIVO, SOCKS5_BRAND_APPLE, SOCKS5_BRAND_WINDOWS,
+       SOCKS5_BRAND_SAMSUNG, SOCKS5_BRAND_XIAOMI, SOCKS5_BRAND_OPPO, SOCKS5_BRAND_HUAWEI, SOCKS5_BRAND_COUNT };
+int socks5_guess_brand(const char *host);
+const char *socks5_brand_code(int brand);
+
 #ifdef __cplusplus
 }
 #endif

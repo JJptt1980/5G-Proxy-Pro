@@ -29,12 +29,24 @@ object ClientTracker {
     private const val PREFS = "client_names"
 
     /** tag：Client GW 報上的「<ID>.<名字hex>」，有的話用 ID 認裝置（最準）。 */
-    data class Client(val ip: String, val mac: String?, val ageSec: Long, val tag: String? = null) {
+    /** brand：原生端看網域猜的品牌代碼（vivo/apple/…），只有次數最多的那個，不含網域。 */
+    data class Client(val ip: String, val mac: String?, val ageSec: Long, val tag: String? = null, val brand: String? = null) {
         val reportedId: String? get() = tag?.substringBefore('.')?.takeIf { it.isNotEmpty() }
         val reportedName: String? get() = tag?.substringAfter('.', "")?.let { decodeHex(it) }
         val key: String get() = mac ?: reportedId?.let { "id:$it" } ?: hostKey(ip)
         val active: Boolean get() = ageSec <= ACTIVE_SEC
     }
+
+    private val BRAND_LABELS = mapOf(
+        "vivo" to "vivo 手機", "apple" to "Apple 裝置", "windows" to "Windows 電腦",
+        "samsung" to "Samsung 裝置", "xiaomi" to "小米裝置", "oppo" to "OPPO 手機", "huawei" to "華為裝置",
+    )
+
+    /** 猜的品牌名稱，加「（猜的）」讓人知道不是真的名字。 */
+    fun brandLabel(c: Client): String? = c.brand?.let { BRAND_LABELS[it] }?.let { "$it（猜的）" }
+
+    /** 沒取名時的預設名稱：先用 Client 報上的名字，沒有再用猜的品牌。 */
+    fun autoName(c: Client): String? = c.reportedName ?: brandLabel(c)
 
     fun decodeHex(h: String): String? {
         if (h.isEmpty() || h.length % 2 != 0) return null
@@ -50,6 +62,7 @@ object ClientTracker {
     /** key → 上一次看到「使用中」的時間（epoch 秒）；用來判斷是不是「新連上」 */
     private val lastActive = HashMap<String, Long>()
     private var primed = false
+    private val lastBrand = HashMap<String, String>()
 
     /** IPv4 → "host:最後一段"；其他（IPv6 等）照原樣。 */
     fun hostKey(ip: String): String {
@@ -81,9 +94,9 @@ object ClientTracker {
     fun parse(raw: String, arp: Map<String, String>): List<Client> =
         raw.split(';').mapNotNull { part ->
             val f = part.split(',')
-            if (f.size !in 2..3) return@mapNotNull null
+            if (f.size !in 2..4) return@mapNotNull null
             val age = f[1].toLongOrNull() ?: return@mapNotNull null
-            Client(f[0], arp[f[0]], age, f.getOrNull(2)?.takeIf { it.isNotEmpty() })
+            Client(f[0], arp[f[0]], age, f.getOrNull(2)?.takeIf { it.isNotEmpty() }, f.getOrNull(3)?.takeIf { it.isNotEmpty() })
         }.filter { it.ageSec <= FORGET_SEC }.sortedBy { it.ageSec }
 
     /** /proc/net/arp：IP → MAC（只取有效項目）。讀不到就回空表，改用 IP 認裝置。 */
@@ -101,6 +114,7 @@ object ClientTracker {
         clients = list
         val now = System.currentTimeMillis() / 1000
         for (c in list) {
+            if (c.brand != null && lastBrand.put(c.key, c.brand) != c.brand) Log.i(TAG, "brand guess: ${c.ip} -> ${c.brand}")
             if (!c.active) continue
             val prev = lastActive[c.key]
             lastActive[c.key] = now - c.ageSec
@@ -134,7 +148,7 @@ object ClientTracker {
         }.apply()
     }
 
-    fun displayName(ctx: Context, c: Client): String = nameOf(ctx, c) ?: c.reportedName ?: c.ip
+    fun displayName(ctx: Context, c: Client): String = nameOf(ctx, c) ?: autoName(c) ?: c.ip
 
     private fun notifyConnected(ctx: Context, c: Client) {
         try {
@@ -144,7 +158,7 @@ object ClientTracker {
                     CHANNEL_ID, ctx.getString(R.string.channel_client_connected),
                     NotificationManager.IMPORTANCE_HIGH))
             }
-            val name = nameOf(ctx, c) ?: c.reportedName
+            val name = nameOf(ctx, c) ?: autoName(c)
             val text = if (name != null) "$name（${c.ip}）" else ctx.getString(R.string.client_unnamed_fmt, c.ip)
             val pi = PendingIntent.getActivity(ctx, 1, Intent(ctx, DebugActivity::class.java),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)

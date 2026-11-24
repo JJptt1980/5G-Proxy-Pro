@@ -261,6 +261,32 @@ static void test_request_addr_len(void) {
     CHECK(socks5_request_addr_len(0xFF, 0) == -1);
 }
 
+static void test_gw_id(void) {
+    char tag[96];
+    CHECK(socks5_is_gw_id_host("ab12cd34.5632.gw-id.invalid") == 1);
+    CHECK(socks5_is_gw_id_host("AB.GW-ID.INVALID") == 1);
+    CHECK(socks5_is_gw_id_host("gw-id.invalid") == 0);
+    CHECK(socks5_is_gw_id_host("www.google.com") == 0);
+    CHECK(socks5_gw_id_tag("ab12cd34.5632.gw-id.invalid", tag, sizeof(tag)) == 0);
+    CHECK(strcmp(tag, "ab12cd34.5632") == 0);
+    CHECK(socks5_gw_id_tag("a,b.gw-id.invalid", tag, sizeof(tag)) == -1);  /* 逗號會弄壞輸出格式 */
+    CHECK(socks5_gw_id_tag("ab.gw-id.invalid", tag, 2) == -1);              /* 放不下 */
+}
+
+static void test_guess_brand(void) {
+    CHECK(socks5_guess_brand("stdlk.vivo.com.cn") == SOCKS5_BRAND_VIVO);
+    CHECK(socks5_guess_brand("vivo.com") == SOCKS5_BRAND_VIVO);
+    CHECK(socks5_guess_brand("gateway.icloud.com.") == SOCKS5_BRAND_APPLE);
+    CHECK(socks5_guess_brand("www.msftconnecttest.com") == SOCKS5_BRAND_WINDOWS);
+    CHECK(socks5_guess_brand("API.XIAOMI.COM") == SOCKS5_BRAND_XIAOMI);
+    CHECK(socks5_guess_brand("notvivo.com") == SOCKS5_BRAND_NONE);
+    CHECK(socks5_guess_brand("www.google.com") == SOCKS5_BRAND_NONE);
+    CHECK(socks5_guess_brand(NULL) == SOCKS5_BRAND_NONE);
+    CHECK(strcmp(socks5_brand_code(SOCKS5_BRAND_VIVO), "vivo") == 0);
+    CHECK(strcmp(socks5_brand_code(SOCKS5_BRAND_NONE), "") == 0);
+    CHECK(strcmp(socks5_brand_code(99), "") == 0);
+}
+
 int main(void) {
     test_method_offered();
     test_check_credentials();
@@ -272,6 +298,8 @@ int main(void) {
     test_encode_reply();
     test_udp_tcp_frame_len();
     test_request_addr_len();
+    test_gw_id();
+    test_guess_brand();
     if (g_failures == 0) {
         printf("socks5_protocol_test: ALL PASS\n");
         return 0;
