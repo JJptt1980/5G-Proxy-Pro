@@ -44,6 +44,10 @@ class Socks5ProxyService : Service() {
     @Volatile
     private var loopsJob: Job? = null
     private var wakeLock: android.os.PowerManager.WakeLock? = null
+    // [GW 閒置省電] 代理在跑但連續 IDLE_RELEASE_MS 沒有任何流量就放掉喚醒鎖，
+    // 有流量（Client 連進來時網路封包會叫醒 CPU）就拿回來。
+    @Volatile private var lastActivityAt = 0L
+    private var lastTrafficSum = -1L
     // [GW 熱點連動] 開著時：熱點開→自動啟動代理，熱點關→停代理但服務與通知留著等下一次。
     @Volatile private var hotspotLinked = false
     @Volatile private var linkedPort = 1080
@@ -272,6 +276,8 @@ class Socks5ProxyService : Service() {
     }
     
     companion object {
+        // 沒流量多久放掉喚醒鎖
+        const val IDLE_RELEASE_MS = 5 * 60 * 1000L
         const val TAG = "Socks5ProxyService"
         const val NOTIFICATION_ID = 1001
         const val CHANNEL_ID = "socks5_proxy_channel"
@@ -440,6 +446,7 @@ class Socks5ProxyService : Service() {
                     if (isProxyRunning) ClientTracker.tick(applicationContext)
                     else if (ClientTracker.clients.isNotEmpty()) ClientTracker.reset()
                 } catch (e: Throwable) { Log.w(TAG, "client tick failed", e) }
+                try { idleWakeLockTick() } catch (e: Throwable) { Log.w(TAG, "idle wakelock tick failed", e) }
             }
         }
         val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
@@ -534,6 +541,29 @@ class Socks5ProxyService : Service() {
     }
 
     /** 等熱點：服務與通知留著（系統不會殺），代理不開，放掉 wakelock 省電。 */
+    /** 每 3 秒：代理在跑時看流量有沒有變，閒置太久放掉喚醒鎖，有流量再拿回來。 */
+    private fun idleWakeLockTick() {
+        val wl = wakeLock ?: return
+        if (!isProxyRunning) return
+        val now = android.os.SystemClock.elapsedRealtime()
+        val sum = NativeEngine.safeGetTrafficBytes()?.sum() ?: return
+        if (sum != lastTrafficSum) {
+            val first = lastTrafficSum < 0
+            lastTrafficSum = sum
+            if (!first) {
+                lastActivityAt = now
+                if (!wl.isHeld) {
+                    wl.acquire()
+                    Log.i(TAG, "idle wakelock: traffic resumed, re-acquired")
+                }
+            }
+        }
+        if (wl.isHeld && now - lastActivityAt >= IDLE_RELEASE_MS) {
+            wl.release()
+            Log.i(TAG, "idle wakelock: no traffic for ${IDLE_RELEASE_MS / 1000}s, released")
+        }
+    }
+
     private fun enterStandby() {
         isServiceRunning = true
         startForegroundCompat(createNotification(
@@ -617,6 +647,8 @@ class Socks5ProxyService : Service() {
     private fun startProxy(port: Int) {
         if (stopRequested || isProxyRunning) return
         wakeLock?.let { if (!it.isHeld) it.acquire() }
+        lastActivityAt = android.os.SystemClock.elapsedRealtime()
+        lastTrafficSum = -1L
         // 上一輪的失敗訊息不得殘留，否則診斷報告會同時出現 RUNNING 與舊的 LastError
         lastErrorMessage = null
         isServiceRunning = true
