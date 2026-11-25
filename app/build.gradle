@@ -31,8 +31,8 @@ android {
         //        socket 被 close 成 orphan，在背景對已消失的目標重傳、RTO 退避到
         //        120 秒，灌爆蜂巢上行並把核心 TCP 記憶體推過壓力門檻。現在 close
         //        前先問 TIOCOUTQ，有積壓就 SO_LINGER(0) 直接 RST 丟棄佇列。
-        versionCode 31
-        versionName "1.8.1"
+        versionCode 32
+        versionName "1.8.2"
         
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a'
