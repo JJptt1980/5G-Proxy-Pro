@@ -16,6 +16,8 @@
 - 誰在用：看網域猜品牌（2026-11-24，方案 D）：原生端在 CONNECT 網域時比對系統網域對照表（vivo／Apple／Windows／Samsung／小米／OPPO／華為），每台只累計各品牌次數、不存網域；getClients 第 4 欄回次數最多的品牌代碼。沒取名、也沒報名字時顯示「vivo 手機（猜的）」這類預設名稱。C 與 Java 單元測試通過、已裝 X200 Pro；熱點上實機測試沒做（V2126 跳回家裡 Wi-Fi，使用者決定先不測）。限制：Client GW 預設送 IP 不送網域，所以主要對直接設 SOCKS5 代理的裝置有效。
 - 2026-11-21 已裝到 X200 Pro（先解除安裝原版 1.6.3，設定已清空）。
 
+- App 內更新（2026-11-26，跟 Client GW 同一套）：首頁最下面「目前版本 X · 檢查更新」，讀 `feed` release 的 update.json、下載核對 SHA-256、叫出系統安裝畫面；只在 debug 版出現，REQUEST_INSTALL_PACKAGES 只放 debug manifest。發版用 `tools/release.sh "說明"`（先調高 versionCode；一律 prerelease）。X200 Pro 實測：1.8.1（31）→ 檢查更新 → 下載 1.8.2（32）→ 允許安裝不明應用程式 → 安裝成功，MY_PACKAGE_REPLACED 後 Pro 自動回到運行中。
+
 ## 已定案的決定
 - 不做「降 targetSdk 用 netlink 讀 MAC」（2026-11-24 決定）：鑽 Android 限制、可能影響通知與前景服務；認裝置靠 Client 報名 ID → IP 最後一段 → 猜品牌。
 - vivo 要在「設定 → 自動啟動」把 5G Proxy Pro 打開，否則開機、App 更新後的廣播會被 vivo 擋掉（系統廣播記錄 dispatchTime=--，BootReceiver 不會被叫起來），Pro 不會自動恢復。2026-11-24 X200 Pro 已打開，實測更新後 1 秒內自動啟動。設定頁可用 adb 開：`am start -n com.vivo.permissionmanager/.activity.BgStartUpManagerActivity`。
@@ -24,6 +26,8 @@
 - 套件名稱不加 `.gw`：Client GW 的同機共存靠 `com.tokyoxpa3.androidproxy` 偵測 Pro。代價是要先解除安裝原版才能裝。
 - commit 使用 JJptt1980 的 GitHub noreply 信箱。
 - 不對上游開 PR，只維護自己的 fork（比照 Client）。
+
+- App 內更新用這台 Mac 的 debug 金鑰簽的 debug APK；換電腦或金鑰就沒辦法接著更新（2026-11-26）。
 
 ## 遠端
 - `origin` = https://github.com/JJptt1980/5G-Proxy-Pro （fork，預設分支 `gw`）
