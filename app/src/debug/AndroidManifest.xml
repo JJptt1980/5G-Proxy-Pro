@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- debug 版才有 App 內更新（SelfUpdate.kt）；release／F-Droid 版不加這個權限。
+     安裝時系統一定會跳出自己的確認畫面。 -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <application>
+        <receiver
+            android:name="com.tokyoxpa3.androidproxy.SelfUpdateReceiver"
+            android:exported="false" />
+    </application>
+
+</manifest>

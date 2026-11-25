@@ -145,8 +145,11 @@ class DebugActivity : Activity() {
         }
     }
 
+    private var selfUpdater: SelfUpdater? = null
+
     override fun onResume() {
         super.onResume()
+        selfUpdater?.onResume()
         ipRefreshHandler.removeCallbacks(ipRefreshRunnable)
         ipRefreshHandler.post(ipRefreshRunnable)
         // 回到前景就自動刷新連線資訊（熱點可能剛開或剛關）
@@ -937,6 +940,13 @@ class DebugActivity : Activity() {
         rootLayout.addView(View(this), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
         rootLayout.addView(entryRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(12) })
         rootLayout.addView(mainButton)
+        // debug（GW 實機）版才有：App 內更新（SelfUpdate.kt）
+        if (SelfUpdate.enabledFor(applicationInfo.flags)) {
+            val u = SelfUpdater(this)
+            selfUpdater = u
+            rootLayout.addView(u.view(cTextSecondary, cAccent, dp(40)),
+                LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(4) })
+        }
 
         // 保底：字體調很大、真的放不下時才能捲；一般情況 fillViewport 讓內容剛好填滿一頁
         val scrollView = ScrollView(this).apply {

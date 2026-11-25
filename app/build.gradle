@@ -31,8 +31,8 @@ android {
         //        socket 被 close 成 orphan，在背景對已消失的目標重傳、RTO 退避到
         //        120 秒，灌爆蜂巢上行並把核心 TCP 記憶體推過壓力門檻。現在 close
         //        前先問 TIOCOUTQ，有積壓就 SO_LINGER(0) 直接 RST 丟棄佇列。
-        versionCode 30
-        versionName "1.8.0"
+        versionCode 31
+        versionName "1.8.1"
         
         ndk {
             abiFilters 'arm64-v8a', 'armeabi-v7a'
@@ -108,6 +108,8 @@ dependencies {
     implementation 'com.google.android.material:material:1.10.0'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
     testImplementation 'junit:junit:4.13.2'
+    // SelfUpdate 用 org.json 解析 update.json，JVM 單元測試需提供實作
+    testImplementation 'org.json:json:20231013'
 }
 
 // [原生協定測試] 用 host C 編譯器編譯並執行純 SOCKS5 協定解析的單元測試。
