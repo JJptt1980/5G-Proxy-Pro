@@ -19,7 +19,7 @@
         android:roundIcon="@mipmap/ic_launcher_preview"
         android:label="5G Proxy Pro"
         android:supportsRtl="true"
-        android:theme="@android:style/Theme.DeviceDefault"
+        android:theme="@style/GwAppTheme"
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false">
         

@@ -31,6 +31,9 @@ import com.tokyoxpa3.androidproxy.network.HotspotManager
 import com.tokyoxpa3.androidproxy.network.PublicIPChecker
 
 class DebugActivity : Activity() {
+    /** 程式裡指定字型的地方一律用 JJSans（主題也設了 android:fontFamily）。 */
+    private val jjFont: Typeface by lazy { resources.getFont(R.font.jj_sans) }
+
     
     private lateinit var statusText: TextView
     private lateinit var statusTitle: TextView
@@ -331,7 +334,7 @@ class DebugActivity : Activity() {
                 text = getString(R.string.proxy_port_label)
                 textSize = 18f
                 setTextColor(0xFF212529.toInt()) 
-                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTypeface(jjFont, android.graphics.Typeface.BOLD)
             }
             portInput = EditText(context).apply {
                 // 還原上次使用的埠號（旋轉/重啟 Activity 不會退回預設 1080）
@@ -378,7 +381,7 @@ class DebugActivity : Activity() {
                 text = getString(R.string.auth_user_label)
                 textSize = 18f
                 setTextColor(0xFF212529.toInt())
-                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTypeface(jjFont, android.graphics.Typeface.BOLD)
             }
             authUserInput = EditText(context).apply {
                 setText(authPrefs.getString("auth_user", "") ?: "")
@@ -410,7 +413,7 @@ class DebugActivity : Activity() {
                 text = getString(R.string.auth_pass_label)
                 textSize = 18f
                 setTextColor(0xFF212529.toInt())
-                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTypeface(jjFont, android.graphics.Typeface.BOLD)
             }
             authPassInput = EditText(context).apply {
                 setText(authPrefs.getString("auth_pass", "") ?: "")
@@ -563,7 +566,7 @@ class DebugActivity : Activity() {
                 text = getString(R.string.traffic_card_title)
                 textSize = 14f
                 setTextColor(0xFF6C757D.toInt())
-                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTypeface(jjFont, android.graphics.Typeface.BOLD)
                 setPadding(0, 0, 0, 12)
             })
 
@@ -578,7 +581,7 @@ class DebugActivity : Activity() {
                 text = getString(R.string.traffic_upload_label)
                 textSize = 12f
                 setTextColor(0xFF6C757D.toInt())
-                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTypeface(jjFont, android.graphics.Typeface.BOLD)
             })
             trafficUploadValue = TextView(context).apply {
                 text = getString(R.string.traffic_na)
@@ -604,7 +607,7 @@ class DebugActivity : Activity() {
                 text = getString(R.string.traffic_download_label)
                 textSize = 12f
                 setTextColor(0xFF6C757D.toInt())
-                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTypeface(jjFont, android.graphics.Typeface.BOLD)
             })
             trafficDownloadValue = TextView(context).apply {
                 text = getString(R.string.traffic_na)
@@ -736,7 +739,7 @@ class DebugActivity : Activity() {
         rootLayout.setPadding(dp(16), dp(8), dp(16), dp(16))
         rootLayout.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
         listOf(portInput, authUserInput, authPassInput).forEach { styleField(it) }
-        authPassInput.typeface = Typeface.DEFAULT
+        authPassInput.typeface = jjFont
         listOf(portLayout, authLayout, passLayout).forEach { row ->
             row.setPadding(0, dp(6), 0, dp(6))
             (row.getChildAt(0) as TextView).apply {
@@ -794,7 +797,7 @@ class DebugActivity : Activity() {
         connectPrimaryText = TextView(this).apply {
             text = getString(R.string.net_fetching)
             textSize = 24f
-            setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+            setTypeface(jjFont, Typeface.BOLD)
             fontFeatureSettings = "tnum"
             setTextColor(cText)
             setPadding(0, dp(2), 0, 0)
@@ -842,13 +845,13 @@ class DebugActivity : Activity() {
 
         // 流量：同一個字色、等寬數字；沒流量時只顯示一句話
         (trafficCard.getChildAt(0) as TextView).apply {
-            setTextColor(cTextSecondary); textSize = 13f; setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
+            setTextColor(cTextSecondary); textSize = 13f; setTypeface(jjFont, Typeface.NORMAL)
             setPadding(0, 0, 0, dp(6))
         }
         trafficCols = trafficCard.getChildAt(1)
         listOf(trafficUploadValue, trafficDownloadValue).forEach {
             it.setTextColor(cText); it.textSize = 20f
-            it.typeface = Typeface.DEFAULT_BOLD; it.fontFeatureSettings = "tnum"
+            it.typeface = Typeface.create(jjFont, Typeface.BOLD); it.fontFeatureSettings = "tnum"
         }
         listOf(trafficUploadTotal, trafficDownloadTotal).forEach {
             it.setTextColor(cTextSecondary); it.fontFeatureSettings = "tnum"
@@ -986,13 +989,13 @@ class DebugActivity : Activity() {
                 addView(TextView(this@DebugActivity).apply {
                     text = getString(titleRes)
                     textSize = 18f
-                    setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                    setTypeface(jjFont, Typeface.BOLD)
                     setTextColor(cText)
                 }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
                 addView(TextView(this@DebugActivity).apply {
                     text = getString(R.string.btn_done)
                     textSize = 16f
-                    setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                    setTypeface(jjFont, Typeface.BOLD)
                     setTextColor(cAccent)
                     gravity = Gravity.CENTER
                     minHeight = dp(44)
@@ -1063,7 +1066,7 @@ class DebugActivity : Activity() {
             rounded(if (isDark) 0xFF13301D.toInt() else 0xFFE3F8E8.toInt(), 16, cGreen)
         } else rounded(cCardBg, 16)
         clientsTitle.setTextColor(if (anyActive) cGreen else cTextSecondary)
-        clientsTitle.setTypeface(Typeface.DEFAULT, if (anyActive) Typeface.BOLD else Typeface.NORMAL)
+        clientsTitle.setTypeface(jjFont, if (anyActive) Typeface.BOLD else Typeface.NORMAL)
         clientsList.removeAllViews()
         if (list.isEmpty()) {
             clientsList.addView(TextView(this).apply {
@@ -1111,7 +1114,7 @@ class DebugActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             addView(TextView(this@DebugActivity).apply {
                 text = name ?: c.ip
-                textSize = 16f; setTextColor(cText); setTypeface(Typeface.DEFAULT, Typeface.BOLD)
+                textSize = 16f; setTextColor(cText); setTypeface(jjFont, Typeface.BOLD)
                 fontFeatureSettings = "tnum"; maxLines = 1
             })
             if (name != null) addView(TextView(this@DebugActivity).apply {
