@@ -17,6 +17,7 @@
 - 2026-11-21 已裝到 X200 Pro（先解除安裝原版 1.6.3，設定已清空）。
 
 - App 內更新（2026-11-26，跟 Client GW 同一套）：首頁最下面「目前版本 X · 檢查更新」，讀 `feed` release 的 update.json、下載核對 SHA-256、叫出系統安裝畫面；只在 debug 版出現，REQUEST_INSTALL_PACKAGES 只放 debug manifest。發版用 `tools/release.sh "說明"`（先調高 versionCode；一律 prerelease）。X200 Pro 實測：1.8.1（31）→ 檢查更新 → 下載 1.8.2（32）→ 允許安裝不明應用程式 → 安裝成功，MY_PACKAGE_REPLACED 後 Pro 自動回到運行中。
+- JJSans 字型（2026-11-27，1.8.3／33）：全 App 換成使用者自製的 JJSans（res/font/jj_sans，OFL 授權檔在 fonts/OFL.txt；原作者 MIT 不變）。主題設 android:fontFamily，程式裡寫死 Typeface.DEFAULT／null 的改用 JJSans。已發 v1.8.3-33（prerelease），X200 Pro 裝好，截圖確認。
 
 ## 已定案的決定
 - 不做「降 targetSdk 用 netlink 讀 MAC」（2026-11-24 決定）：鑽 Android 限制、可能影響通知與前景服務；認裝置靠 Client 報名 ID → IP 最後一段 → 猜品牌。
