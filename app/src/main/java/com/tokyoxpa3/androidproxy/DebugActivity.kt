@@ -960,6 +960,7 @@ class DebugActivity : Activity() {
         }
         scrollView.addView(rootLayout)
         setContentView(scrollView)
+        tightenText(rootLayout)
     }
 
     /** 從下往上滑出的面板：背景變暗、點外面或往下拉標題就收起。 */
@@ -1098,6 +1099,7 @@ class DebugActivity : Activity() {
             })
         }
         shownClientKeys = newKeys
+        tightenText(clientsCard)
     }
 
     private fun clientRow(c: ClientTracker.Client): View = LinearLayout(this).apply {
@@ -1220,6 +1222,21 @@ class DebugActivity : Activity() {
         setColor(color)
         cornerRadius = dp(radiusDp).toFloat()
         if (strokeColor != null) setStroke(dp(1), strokeColor)
+    }
+
+    /**
+     * JJSans 本身行高很高（字與字上下留很多空），整頁會超出一個畫面。
+     * 把每個 TextView 的行高壓到字級的 1.3 倍、拿掉額外字型留白。
+     */
+    private fun tightenText(v: View) {
+        when (v) {
+            is android.widget.EditText, is android.widget.CompoundButton -> Unit
+            is TextView -> {
+                v.includeFontPadding = false
+                if (android.os.Build.VERSION.SDK_INT >= 28) v.lineHeight = (v.textSize * 1.3f).toInt()
+            }
+            is ViewGroup -> for (i in 0 until v.childCount) tightenText(v.getChildAt(i))
+        }
     }
 
     private fun createCard() = LinearLayout(this).apply {

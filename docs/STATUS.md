@@ -19,6 +19,7 @@
 - App 內更新（2026-11-26，跟 Client GW 同一套）：首頁最下面「目前版本 X · 檢查更新」，讀 `feed` release 的 update.json、下載核對 SHA-256、叫出系統安裝畫面；只在 debug 版出現，REQUEST_INSTALL_PACKAGES 只放 debug manifest。發版用 `tools/release.sh "說明"`（先調高 versionCode；一律 prerelease）。X200 Pro 實測：1.8.1（31）→ 檢查更新 → 下載 1.8.2（32）→ 允許安裝不明應用程式 → 安裝成功，MY_PACKAGE_REPLACED 後 Pro 自動回到運行中。
 - JJSans 字型（2026-11-27，1.8.3／33）：全 App 換成使用者自製的 JJSans（res/font/jj_sans，OFL 授權檔在 fonts/OFL.txt；原作者 MIT 不變）。主題設 android:fontFamily，程式裡寫死 Typeface.DEFAULT／null 的改用 JJSans。已發 v1.8.3-33（prerelease），X200 Pro 裝好，截圖確認。
 - 快速設定方塊「5G Pro」（2026-11-27，1.8.4／34，只在 GW 版：ProTileService.kt 與 manifest 都在 app/src/debug）：下拉面板點一下開關代理，亮起＝運行中；啟動用上次的埠號。X200 Pro 實測：方塊加進面板，點一下停、再點一下開。
+- 首頁縮成一頁（2026-11-27，1.8.5／35）：JJSans 行高很高，換字型後整頁超出畫面。縮小卡片留白與間距、狀態／IP／流量大字、主按鈕高度，並把每個 TextView 行高壓到字級 1.3 倍（tightenText）。X200 Pro 實測：運行中狀態整頁一頁放得下，下方還有空間。
 
 ## 已定案的決定
 - 不做「降 targetSdk 用 netlink 讀 MAC」（2026-11-24 決定）：鑽 Android 限制、可能影響通知與前景服務；認裝置靠 Client 報名 ID → IP 最後一段 → 猜品牌。
@@ -40,6 +41,7 @@
 - 實機測試：X200 Pro 開熱點跑 Pro GW，平板用 Client GW 填 gateway 連線。
 
 ## 已知問題
+- 快速設定方塊：App 剛更新後點方塊沒反應（方塊服務要重新綁定）；19:55 有一次從方塊啟動後 1.4 秒就停掉，原因還沒查。
 - 閒置放鎖只在接著 USB 的情況測過；拔掉電源、長時間深度休眠時，Client 連進來能不能叫醒 Pro 還沒測。
 - 熱點連動在螢幕關閉、長時間等待下會不會被 vivo 殺掉，還沒實測。
 - 「誰在用」原本想用 MAC 認裝置：adb run-as 讀得到 /proc/net/arp，但 App 實際執行時讀不到（mac=null），所以目前用 IP 最後一段認裝置；兩台撞號，或號碼被別台先拿走時會認錯；熱點和 USB 網路共享的裝置號碼相同時也會混在一起。
