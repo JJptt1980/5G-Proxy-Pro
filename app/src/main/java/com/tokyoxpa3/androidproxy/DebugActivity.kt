@@ -303,7 +303,7 @@ class DebugActivity : Activity() {
         }
         statusTitle = TextView(this).apply {
             text = getString(R.string.status_title_stopped)
-            textSize = 20f
+            textSize = 18f
             setTypeface(typeface, Typeface.BOLD)
             setTextColor(cText)
         }
@@ -796,7 +796,7 @@ class DebugActivity : Activity() {
         ipCard.removeAllViews()
         connectPrimaryText = TextView(this).apply {
             text = getString(R.string.net_fetching)
-            textSize = 24f
+            textSize = 21f
             setTypeface(jjFont, Typeface.BOLD)
             fontFeatureSettings = "tnum"
             setTextColor(cText)
@@ -810,7 +810,7 @@ class DebugActivity : Activity() {
             textSize = 13f
             setTextColor(cTextSecondary)
             fontFeatureSettings = "tnum"
-            setPadding(0, dp(8), 0, 0)
+            setPadding(0, dp(4), 0, 0)
             maxLines = 2
         }
         val refreshLink = TextView(this).apply {
@@ -818,7 +818,7 @@ class DebugActivity : Activity() {
             textSize = 14f
             setTextColor(cAccent)
             gravity = Gravity.CENTER
-            minHeight = dp(44)
+            minHeight = dp(36)
             setPadding(dp(12), 0, 0, 0)
             setOnClickListener {
                 it.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
@@ -838,7 +838,7 @@ class DebugActivity : Activity() {
             text = getString(R.string.hint_client_gateway)
             textSize = 13f
             setTextColor(cTextSecondary)
-            setPadding(0, dp(8), 0, 0)
+            setPadding(0, dp(4), 0, 0)
         })
         ipCard.addView(connectSummaryText)
         renderConnectInfo()
@@ -850,7 +850,7 @@ class DebugActivity : Activity() {
         }
         trafficCols = trafficCard.getChildAt(1)
         listOf(trafficUploadValue, trafficDownloadValue).forEach {
-            it.setTextColor(cText); it.textSize = 20f
+            it.setTextColor(cText); it.textSize = 18f
             it.typeface = Typeface.create(jjFont, Typeface.BOLD); it.fontFeatureSettings = "tnum"
         }
         listOf(trafficUploadTotal, trafficDownloadTotal).forEach {
@@ -860,7 +860,7 @@ class DebugActivity : Activity() {
             text = getString(R.string.traffic_empty)
             textSize = 15f
             setTextColor(cTextSecondary)
-            setPadding(0, dp(4), 0, dp(4))
+            setPadding(0, dp(2), 0, dp(2))
         }
         trafficCard.addView(trafficEmptyText)
         resetTrafficLabels()
@@ -881,7 +881,7 @@ class DebugActivity : Activity() {
             textSize = 17f
             setTypeface(typeface, Typeface.BOLD)
             setPadding(0, 0, 0, 0)
-            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(56)).apply { topMargin = dp(12) }
+            layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(52)).apply { topMargin = dp(8) }
             // 按下微縮，放開彈回
             setOnTouchListener { v, e ->
                 when (e.actionMasked) {
@@ -932,7 +932,7 @@ class DebugActivity : Activity() {
                 LinearLayout.LayoutParams(0, dp(44), 1f).apply { leftMargin = dp(6) })
         }
         listOf(ipCard, trafficCard, clientsCard).forEach {
-            (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(12)
+            (it.layoutParams as? LinearLayout.LayoutParams)?.topMargin = dp(8)
         }
 
         rootLayout.addView(appLabel)
@@ -941,7 +941,7 @@ class DebugActivity : Activity() {
         rootLayout.addView(trafficCard)
         rootLayout.addView(clientsCard)
         rootLayout.addView(View(this), LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
-        rootLayout.addView(entryRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(12) })
+        rootLayout.addView(entryRow, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(44)).apply { topMargin = dp(8) })
         rootLayout.addView(mainButton)
         // debug（GW 實機）版才有：App 內更新（SelfUpdate.kt）
         if (SelfUpdate.enabledFor(applicationInfo.flags)) {
@@ -1224,7 +1224,7 @@ class DebugActivity : Activity() {
 
     private fun createCard() = LinearLayout(this).apply {
         orientation = LinearLayout.VERTICAL
-        setPadding(dp(16), dp(14), dp(16), dp(14))
+        setPadding(dp(16), dp(10), dp(16), dp(10))
         background = rounded(cCardBg, 16)
         layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
